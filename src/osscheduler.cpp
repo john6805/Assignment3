@@ -3,11 +3,12 @@
 #include <list>
 #include <thread>
 #include <mutex>
+#include <vector>
 #include "configreader.h"
 #include "process.h"
 
 void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t context_switch, uint32_t time_slice,
-                       std::list<Process*> *processes, std::mutex *mutex);
+                       std::list<Process*> *ready_queue, std::mutex *mutex);
 
 int main(int argc, char **argv)
 {
@@ -28,25 +29,35 @@ int main(int argc, char **argv)
     ScheduleAlgorithm algorithm = config->algorithm;
     uint32_t context_switch = config->context_switch;
     uint32_t time_slice = config->time_slice;
-    std::list<Process*> processes;
+    std::vector<Process*> processes;
+    std::list<Process*> ready_queue;
     for (i = 0; i < config->num_processes; i++)
     {
         Process *p = new Process(config->processes[i]);
         processes.push_back(p);
+        if (p->GetState() == Process::State::Ready)
+        {
+            ready_queue.push_back(p);
+        }
     }
 
     // Free configuration data from memory
     DeleteConfig(&config);
+
+    //start timer
 
     // Launch 1 scheduling thread per cpu core
     std::mutex mutex;
     std::thread *schedule_threads = new std::thread[cores];
     for (i = 0; i < cores; i++)
     {
-        schedule_threads[i] = std::thread(ScheduleProcesses, i, algorithm, context_switch, time_slice, &processes, &mutex);
+        schedule_threads[i] = std::thread(ScheduleProcesses, i, algorithm, context_switch, time_slice, &ready_queue, &mutex);
     }
 
     // Main thread work goes here:
+    // While(not all terminated)
+    //      Check state of each process, if not started, check start time and start
+    //      if in io check io time and add to ready
     //  - Start new processes at their appropriate start time
     //  - Determine when an I/O burst finishes and put the process back in the ready queue
     //  - Sort the ready queue (based on scheduling algorithm)
@@ -76,7 +87,7 @@ int main(int argc, char **argv)
 }
 
 void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t context_switch, uint32_t time_slice,
-                       std::list<Process*> *processes, std::mutex *mutex)
+                       std::list<Process*> *ready_queue, std::mutex *mutex)
 {
     // Work to be done by each core idependent of the other cores
     //  - Get process at front of ready queue

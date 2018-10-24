@@ -1,4 +1,5 @@
 #include "configreader.h"
+#include "algorithm"
 
 void ReadConfigFile(const char *filename, SchedulerConfig **config)
 {
