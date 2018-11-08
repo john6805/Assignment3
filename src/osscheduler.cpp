@@ -14,6 +14,7 @@ bool processesTerminated = false;
 
 int main(int argc, char **argv)
 {
+    std::cout << "TEST\n";
     // Ensure user entered a command line parameter for configuration file name
     std::cout << "main\n";
     if (argc < 2)
@@ -93,7 +94,6 @@ int main(int argc, char **argv)
         }
         //PrintStatistics()
     }
-
     processesTerminated = true;
     //          Check state of each process, if not started, check start time and start
     //          if in io check io time and add to ready
