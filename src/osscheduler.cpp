@@ -10,10 +10,12 @@
 
 void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t context_switch, uint32_t time_slice,
                        std::list<Process*> *ready_queue, std::mutex *mutex);
+bool processesTerminated = false;
 
 int main(int argc, char **argv)
 {
     // Ensure user entered a command line parameter for configuration file name
+    std::cout << "main\n";
     if (argc < 2)
     {
         std::cerr << "Error: must specify configuration file" << std::endl;
@@ -21,8 +23,11 @@ int main(int argc, char **argv)
     }
 
     // Read configuration file for scheduling simulation
+    std::cout << "before everything\n";
     SchedulerConfig *config;
+    std::cout << "Before config file read\n";
     ReadConfigFile(argv[1], &config);
+    std::cout << "After config file read\n";
 
     // Store configuration parameters and create processes 
     int i;
@@ -41,7 +46,7 @@ int main(int argc, char **argv)
             ready_queue.push_back(p);
         }
     }
-
+    std::cout << "config done";
     // Free configuration data from memory
     DeleteConfig(&config);
 
@@ -49,6 +54,7 @@ int main(int argc, char **argv)
     std::clock_t start_time;
     std::clock_t current_time;
     start_time = clock();
+    std::cout << clock() - start_time;
     // Launch 1 scheduling thread per cpu core
     std::mutex mutex;
     std::thread *schedule_threads = new std::thread[cores];
@@ -87,6 +93,8 @@ int main(int argc, char **argv)
         }
         //PrintStatistics()
     }
+
+    processesTerminated = true;
     //          Check state of each process, if not started, check start time and start
     //          if in io check io time and add to ready
     //  - Start new processes at their appropriate start time
@@ -121,16 +129,27 @@ int main(int argc, char **argv)
 void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t context_switch, uint32_t time_slice,
                        std::list<Process*> *ready_queue, std::mutex *mutex)
 {
-    // Work to be done by each core idependent of the other cores
-    //  - Get process at front of ready queue
-    //  - Simulate the processes running until one of the following:
-    //     - CPU burst time has elapsed
-    //     - RR time slice has elapsed
-    //     - Process preempted by higher priority process
-    //  - Place the process back in the appropriate queue
-    //     - I/O queue if CPU burst finished (and process not finished)
-    //     - Terminated if CPU burst finished and no more bursts remain
-    //     - Ready queue if time slice elapsed or process was preempted
-    //  - Wait context switching time
-    //  - Repeat until all processes in terminated state
+    Process* currentProcess;
+    while(!processesTerminated)
+    {
+        //Get process at front of ready queue
+        if(!ready_queue->empty())
+        {
+            currentProcess = ready_queue->front();
+            ready_queue->pop_front();
+        }
+        
+        //  - Simulate the processes running until one of the following:
+        //     - CPU burst time has elapsed
+        //     - RR time slice has elapsed
+        //     - Process preempted by higher priority process
+        //  - Place the process back in the appropriate queue
+        //     - I/O queue if CPU burst finished (and process not finished)
+        //     - Terminated if CPU burst finished and no more bursts remain
+        //     - Ready queue if time slice elapsed or process was preempted
+        //  - Wait context switching time
+        //  - Repeat until all processes in terminated state
+    }
+    // Work to be done by each core idependent of the other core
+       //  - 
 }
