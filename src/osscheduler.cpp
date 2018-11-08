@@ -10,9 +10,11 @@
 
 void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t context_switch, uint32_t time_slice,
                        std::list<Process*> *ready_queue, std::mutex *mutex);
+bool processesTerminated = false;
 
 int main(int argc, char **argv)
 {
+    std::cout << "TEST\n";
     // Ensure user entered a command line parameter for configuration file name
     if (argc < 2)
     {
@@ -87,6 +89,7 @@ int main(int argc, char **argv)
         }
         //PrintStatistics()
     }
+    processesTerminated = true;
     //          Check state of each process, if not started, check start time and start
     //          if in io check io time and add to ready
     //  - Start new processes at their appropriate start time
@@ -121,6 +124,14 @@ int main(int argc, char **argv)
 void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t context_switch, uint32_t time_slice,
                        std::list<Process*> *ready_queue, std::mutex *mutex)
 {
+    Process *CurrentProcess;
+    while(!processesTerminated){
+        if(ready_queue->size() != 0) {
+            CurrentProcess = ready_queue->front();
+            ready_queue->pop_front();
+        }
+        
+    }
     // Work to be done by each core idependent of the other cores
     //  - Get process at front of ready queue
     //  - Simulate the processes running until one of the following:

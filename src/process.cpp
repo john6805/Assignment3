@@ -80,9 +80,21 @@ int8_t Process::GetCpuCore()
     return core;
 }
 
+void Process::SetCpuCore(int8_t Core)
+{
+    core = Core;
+    return;
+}
+
+
 double Process::GetTurnaroundTime()
 {
     return (double)turn_time / 1000.0;
+}
+
+void Process::CalcTurnaroundTime()
+{
+    return;
 }
 
 double Process::GetWaitTime()
@@ -90,12 +102,28 @@ double Process::GetWaitTime()
     return (double)wait_time / 1000.0;
 }
 
+void Process::CalcWaitTime()
+{
+    return;
+}
+
 double Process::GetCpuTime()
 {
     return (double)cpu_time / 1000.0;
 }
 
+void Process::CalcCpuTime()
+{
+    return;
+}
+
 double Process::GetRemainingTime()
 {
     return (double)remain_time / 1000.0;
+}
+
+void Process::SetRemainingTime(int32_t newRemainTime)
+{
+    remain_time = newRemainTime;
+    return;
 }

@@ -36,10 +36,15 @@ public:
     void SetBurstStartTime();
     void UpdateCurrentBurst();
     int8_t GetCpuCore();
+    void SetCpuCore(int8_t Core);
     double GetTurnaroundTime();
+    void CalcTurnaroundTime();
     double GetWaitTime();
+    void CalcWaitTime();
     double GetCpuTime();
+    void CalcCpuTime();
     double GetRemainingTime();
+    void SetRemainingTime(int32_t newRemainTime);
 };
 
 #endif // __PROCESS_H_
