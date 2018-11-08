@@ -4,6 +4,7 @@
 #include <thread>
 #include <mutex>
 #include <vector>
+#include <unistd.h>
 #include "configreader.h"
 #include "process.h"
 #include "time.h"
@@ -14,9 +15,7 @@ bool processesTerminated = false;
 
 int main(int argc, char **argv)
 {
-    std::cout << "TEST\n";
     // Ensure user entered a command line parameter for configuration file name
-    std::cout << "main\n";
     if (argc < 2)
     {
         std::cerr << "Error: must specify configuration file" << std::endl;
@@ -130,13 +129,46 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                        std::list<Process*> *ready_queue, std::mutex *mutex)
 {
     Process* currentProcess;
+    uint32_t currentTime;
+    uint32_t start;
+    uint32_t end;
+    uint32_t time_elapsed;
     while(!processesTerminated)
     {
         //Get process at front of ready queue
         if(!ready_queue->empty())
         {
+            //if(First Come First Serve)
             currentProcess = ready_queue->front();
             ready_queue->pop_front();
+            currentTime = clock();
+            currentProcess->SetBurstStartTime();
+            while(currentProcess->GetBurstStartTime() - currentTime <= currentProcess->GetBurstTime())
+            {
+                //Simulate Process running
+                currentTime = clock();
+                start = clock();            
+                currentProcess->SetState(Process::State::Running);
+                end = clock();
+                time_elapsed = end - start;
+                currentProcess->SetRemainingTime(time_elapsed);
+            }
+            //Place process back in queue
+            if(currentProcess->GetRemainingTime() <= 0)
+            {
+                currentProcess->SetState(Process::State::Terminated);
+            }
+            else
+            {
+                currentProcess->SetState(Process::State::IO);
+            }
+
+            //wait context switching time
+            usleep(context_switch);
+
+            //if(Round Robin)
+            //if(Shortest Job First)
+            //if(Premptive Priority)
         }
         
         //  - Simulate the processes running until one of the following:

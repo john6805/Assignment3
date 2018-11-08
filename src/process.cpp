@@ -122,8 +122,8 @@ double Process::GetRemainingTime()
     return (double)remain_time / 1000.0;
 }
 
-void Process::SetRemainingTime(int32_t newRemainTime)
+void Process::SetRemainingTime(int32_t time_elapsed)
 {
-    remain_time = newRemainTime;
+    remain_time = remain_time - time_elapsed;
     return;
 }
