@@ -29,6 +29,9 @@ public:
     uint32_t GetStartTime();
     uint8_t GetPriority();
     State GetState();
+    void SetState(Process::State input);
+    uint32_t GetBurstTime();
+    void UpdateCurrentBurst();
     int8_t GetCpuCore();
     double GetTurnaroundTime();
     double GetWaitTime();

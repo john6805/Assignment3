@@ -6,6 +6,7 @@
 #include <vector>
 #include "configreader.h"
 #include "process.h"
+#include "time.h"
 
 void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t context_switch, uint32_t time_slice,
                        std::list<Process*> *ready_queue, std::mutex *mutex);
@@ -45,7 +46,9 @@ int main(int argc, char **argv)
     DeleteConfig(&config);
 
     //start timer
-
+    std::clock_t start_time;
+    std::clock_t current_time;
+    start_time = clock();
     // Launch 1 scheduling thread per cpu core
     std::mutex mutex;
     std::thread *schedule_threads = new std::thread[cores];
@@ -55,9 +58,37 @@ int main(int argc, char **argv)
     }
 
     // Main thread work goes here:
-    // While(not all terminated)
-    //      Check state of each process, if not started, check start time and start
-    //      if in io check io time and add to ready
+    //      While(not all terminated)
+    int terminated = 0;
+    while(terminated != processes.size())
+    {
+        terminated = 0;
+        for(int i = 0; i < processes.size(); i++)
+        {
+            current_time = clock();
+            if(processes[i]->GetState() == Process::State::Terminated)
+            {
+                terminated++;
+            }
+            if (processes[i]->GetState() == Process::State::NotStarted && (current_time - start_time) >= processes[i]->GetStartTime())
+            {
+                processes[i]->SetState(Process::State::Ready);
+                ready_queue.push_back(processes[i]);
+            }
+            else if(processes[i]->GetState() == Process::State::IO) 
+            {
+                if(processes[i]->GetBurstTime() <= current_time - start_time)
+                {
+                    processes[i]->SetState(Process::State::Ready);
+                    processes[i]->UpdateCurrentBurst();
+                    ready_queue.push_back(processes[i]);
+                }
+            }
+        }
+        //PrintStatistics()
+    }
+    //          Check state of each process, if not started, check start time and start
+    //          if in io check io time and add to ready
     //  - Start new processes at their appropriate start time
     //  - Determine when an I/O burst finishes and put the process back in the ready queue
     //  - Sort the ready queue (based on scheduling algorithm)
@@ -70,6 +101,7 @@ int main(int argc, char **argv)
         schedule_threads[i].join();
     }
 
+    //std::cout << calcCPUUtil() << "\n";
     // Print final statistics
     //  - CPU utilization
     //  - Throughput

@@ -50,6 +50,21 @@ Process::State Process::GetState()
     return state;
 }
 
+void Process::SetState(Process::State input)
+{
+    state = input;
+}
+
+uint32_t Process::GetBurstTime()
+{
+    return burst_times[current_burst];
+}
+
+void Process::UpdateCurrentBurst()
+{
+    current_burst = current_burst + 1;
+}
+
 int8_t Process::GetCpuCore()
 {
     return core;
