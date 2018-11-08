@@ -1,4 +1,5 @@
 #include "process.h"
+#include "time.h"
 
 Process::Process(ProcessDetails details)
 {
@@ -65,6 +66,15 @@ void Process::UpdateCurrentBurst()
     current_burst = current_burst + 1;
 }
 
+uint32_t Process::GetBurstStartTime()
+{
+    return burst_start_time;
+}
+
+void Process::SetBurstStartTime()
+{
+    burst_start_time = clock();
+}
 int8_t Process::GetCpuCore()
 {
     return core;

@@ -77,7 +77,7 @@ int main(int argc, char **argv)
             }
             else if(processes[i]->GetState() == Process::State::IO) 
             {
-                if(processes[i]->GetBurstTime() <= current_time - start_time)
+                if(current_time - processes[i]->GetBurstStartTime() >= processes[i]->GetBurstTime())
                 {
                     processes[i]->SetState(Process::State::Ready);
                     processes[i]->UpdateCurrentBurst();

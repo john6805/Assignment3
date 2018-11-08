@@ -13,6 +13,7 @@ private:
     uint16_t num_bursts;
     uint16_t current_burst;
     uint32_t *burst_times;
+    uint32_t burst_start_time;
     uint8_t priority;
     State state;
     int8_t core;
@@ -31,6 +32,8 @@ public:
     State GetState();
     void SetState(Process::State input);
     uint32_t GetBurstTime();
+    uint32_t GetBurstStartTime();
+    void SetBurstStartTime();
     void UpdateCurrentBurst();
     int8_t GetCpuCore();
     double GetTurnaroundTime();
