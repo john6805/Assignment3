@@ -17,6 +17,9 @@ bool processesTerminated = false;
 
 int main(int argc, char **argv)
 {
+    time_t start, end;
+    time (&start);
+    
     // Ensure user entered a command line parameter for configuration file name
     if (argc < 2)
     {
@@ -154,6 +157,7 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
             currentProcess = ready_queue->front();
             ready_queue->pop_front();
             mutex->unlock();
+            currentProcess->SetCpuCore(core_id);
             currentTime = clock();
             currentProcess->SetBurstStartTime();
             while(currentProcess->GetBurstStartTime() - currentTime <= currentProcess->GetBurstTime())
@@ -164,16 +168,21 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                 currentProcess->SetState(Process::State::Running);
                 end = clock();
                 time_elapsed = end - start;
+                currentProcess->CalcTurnaroundTime();
+                //currentProcess->CalcWaitTime(time_elapsed);
+                //currentProcess->CalcCpuTime(time_elapsed);
                 currentProcess->SetRemainingTime(time_elapsed);
             }
             currentProcess->UpdateCurrentBurst();
             //Place process back in queue
             if(currentProcess->GetRemainingTime() <= 0)
             {
+                currentProcess->SetCpuCore(-1);
                 currentProcess->SetState(Process::State::Terminated);
             }
             else
             {
+                currentProcess->SetCpuCore(-1);
                 currentProcess->SetState(Process::State::IO);
             }
 
@@ -285,13 +294,13 @@ int PrintStatistics(std::vector<Process*> processes, ScheduleAlgorithm algorithm
             //Wait Time
             k = 64;
             for(int j = turnTime.length()-1; j >= 0; j--) {
-                processLine[k] = turnTime[j];
+                processLine[k] = waitTime[j];
                 k--;
             }
             //CPU Time
             k = 77;
             for(int j = turnTime.length()-1; j >= 0; j--) {
-                processLine[k] = turnTime[j];
+                processLine[k] = cpuTime[j];
                 k--;
             }
             //Remain Time

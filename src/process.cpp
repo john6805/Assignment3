@@ -94,6 +94,7 @@ double Process::GetTurnaroundTime()
 
 void Process::CalcTurnaroundTime()
 {
+    turn_time = clock()-start_time;
     return;
 }
 
