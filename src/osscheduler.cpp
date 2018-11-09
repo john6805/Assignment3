@@ -46,7 +46,7 @@ int main(int argc, char **argv)
             ready_queue.push_back(p);
         }
     }
-    std::cout << "config done";
+    std::cout << "config done" << std::endl;
     // Free configuration data from memory
     DeleteConfig(&config);
 
@@ -54,19 +54,21 @@ int main(int argc, char **argv)
     std::clock_t start_time;
     std::clock_t current_time;
     start_time = clock();
-    std::cout << clock() - start_time;
+    std::cout << clock() - start_time << std::endl;
     // Launch 1 scheduling thread per cpu core
     std::mutex mutex;
     std::thread *schedule_threads = new std::thread[cores];
+    std::cout << "threads to be scheduled";
     for (i = 0; i < cores; i++)
     {
         schedule_threads[i] = std::thread(ScheduleProcesses, i, algorithm, context_switch, time_slice, &ready_queue, &mutex);
     }
+    std::cout << "threads scheduled";
 
     // Main thread work goes here:
     //      While(not all terminated)
     int terminated = 0;
-    while(terminated != processes.size())
+    while(terminated < processes.size())
     {
         terminated = 0;
         for(int i = 0; i < processes.size(); i++)
@@ -91,6 +93,7 @@ int main(int argc, char **argv)
                 }
             }
         }
+        // std::cout << ready_queue.size();
         //PrintStatistics()
     }
     processesTerminated = true;
@@ -135,12 +138,14 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
     uint32_t time_elapsed;
     while(!processesTerminated)
     {
+        mutex->lock();
         //Get process at front of ready queue
         if(!ready_queue->empty())
         {
             //if(First Come First Serve)
             currentProcess = ready_queue->front();
             ready_queue->pop_front();
+            mutex->unlock();
             currentTime = clock();
             currentProcess->SetBurstStartTime();
             while(currentProcess->GetBurstStartTime() - currentTime <= currentProcess->GetBurstTime())
@@ -153,6 +158,7 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                 time_elapsed = end - start;
                 currentProcess->SetRemainingTime(time_elapsed);
             }
+            currentProcess->UpdateCurrentBurst();
             //Place process back in queue
             if(currentProcess->GetRemainingTime() <= 0)
             {
@@ -169,6 +175,10 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
             //if(Round Robin)
             //if(Shortest Job First)
             //if(Premptive Priority)
+        }
+        else 
+        {
+            mutex->unlock();
         }
         
         //  - Simulate the processes running until one of the following:
