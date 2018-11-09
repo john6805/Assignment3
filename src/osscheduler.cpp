@@ -11,6 +11,8 @@
 
 void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t context_switch, uint32_t time_slice,
                        std::list<Process*> *ready_queue, std::mutex *mutex);
+void PrintStatistics(std::vector<Process*> processes, ScheduleAlgorithm algorithm);
+
 bool processesTerminated = false;
 
 int main(int argc, char **argv)
@@ -46,10 +48,11 @@ int main(int argc, char **argv)
             ready_queue.push_back(p);
         }
     }
-    std::cout << "config done" << std::endl;
+    std::cout << "config done\n";
     // Free configuration data from memory
     DeleteConfig(&config);
 
+    PrintStatistics(processes, algorithm);
     //start timer
     std::clock_t start_time;
     std::clock_t current_time;
@@ -194,4 +197,135 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
     }
     // Work to be done by each core idependent of the other core
        //  - 
+}
+
+void PrintStatistics(std::vector<Process*> processes, ScheduleAlgorithm algorithm) {
+    for (int i=0; i<2+processes.size(); i++) {
+            fputs("\033[A\033[2K", stdout);
+    }
+    rewind(stdout);
+    std::cout << "|   PID | Priority |       State | Core |  Turn Time |  Wait Time |   CPU Time | Remain Time |\n";
+    std::cout << "+-------+----------+-------------+------+------------+------------+------------+-------------+\n";
+    for(int i = 0; i<processes.size(); i++){
+        std::string processLine = "";
+        std::string pid = std::to_string(processes[i]->GetPid());
+        std::string priority = std::to_string(processes[i]->GetPriority());
+        std::string core = std::to_string(processes[i]->GetCpuCore());
+        std::string turnTime = std::to_string(processes[i]->GetTurnaroundTime());
+        std::string waitTime = std::to_string(processes[i]->GetWaitTime());
+        std::string cpuTime = std::to_string(processes[i]->GetCpuTime());
+        std::string remTime = std::to_string(processes[i]->GetRemainingTime());
+        processLine += "|       |          |             |      |            |            |            |             |\n";
+
+        //PID
+        int k = 6;
+        for(int j = pid.length()-1; j >= 0; j--) {
+            processLine[k] = pid[j];
+            k--;
+        }
+        //Priority
+        if(algorithm == 'PP') {
+            processLine[17] = priority[0];
+        }
+        else {
+            processLine[17] = '0';
+        }
+        //State
+        if(processes[i]->GetState() == Process::State::NotStarted) {
+            processLine[21] = 'n';
+            processLine[22] = 'o';
+            processLine[23] = 't';
+            processLine[24] = ' ';
+            processLine[25] = 's';
+            processLine[26] = 't';
+            processLine[27] = 'a';
+            processLine[28] = 'r';
+            processLine[29] = 't';
+            processLine[30] = 'e';
+            processLine[31] = 'd';
+        }
+        else if(processes[i]->GetState() == Process::State::Ready) {
+            processLine[27] = 'r';
+            processLine[28] = 'e';
+            processLine[29] = 'a';
+            processLine[30] = 'd';
+            processLine[31] = 'y';
+        }
+        else if(processes[i]->GetState() == Process::State::Running) {
+            processLine[25] = 'r';
+            processLine[26] = 'u';
+            processLine[27] = 'n';
+            processLine[28] = 'n';
+            processLine[29] = 'i';
+            processLine[30] = 'n';
+            processLine[31] = 'g';
+        }
+        else if(processes[i]->GetState() == Process::State::IO) {
+            processLine[29] = 'i';
+            processLine[30] = '/';
+            processLine[31] = 'o';
+        }
+        else{
+            processLine[22] = 't';
+            processLine[23] = 'e';
+            processLine[24] = 'r';
+            processLine[25] = 'm';
+            processLine[26] = 'i';
+            processLine[27] = 'n';
+            processLine[28] = 'a';
+            processLine[29] = 't';
+            processLine[30] = 'e';
+            processLine[31] = 'd';
+        }
+        //Core
+        if(core != "-1") {
+            processLine[38] = core[0];
+        }
+        else{
+            processLine[37] = '-';
+            processLine[38] = '-';
+        }
+        //Turn Time
+        k = 51;
+        for(int j = turnTime.length()-1; j >= 0; j--) {
+            processLine[k] = turnTime[j];
+            k--;
+        }
+        //Wait Time
+        k = 64;
+        for(int j = turnTime.length()-1; j >= 0; j--) {
+            processLine[k] = turnTime[j];
+            k--;
+        }
+        //CPU Time
+        k = 77;
+        for(int j = turnTime.length()-1; j >= 0; j--) {
+            processLine[k] = turnTime[j];
+            k--;
+        }
+        //Remain Time
+        k = 90;
+        for(int j = turnTime.length()-1; j >= 0; j--) {
+            processLine[k] = turnTime[j];
+            k--;
+        }
+        /*//PID
+        std::cout << "|       |";
+        //Priority
+        std::cout << "          |";
+        //State
+        std::cout << "            |";
+        //Core
+        std::cout << "   -- |";
+        //Turn Time
+        std::cout << "           |";
+        //Wait Time
+        std::cout << "           |";
+        //CPU Time
+        std::cout << "         |";
+        //Remain Time
+        std::cout << "             |\n";*/
+        std::cout << processLine;
+    }
+    return;
 }
