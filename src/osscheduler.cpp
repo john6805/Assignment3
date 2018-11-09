@@ -57,16 +57,16 @@ int main(int argc, char **argv)
     std::clock_t start_time;
     std::clock_t current_time;
     start_time = clock();
-    std::cout << clock() - start_time << std::endl;
+    //std::cout << clock() - start_time << std::endl;
     // Launch 1 scheduling thread per cpu core
     std::mutex mutex;
     std::thread *schedule_threads = new std::thread[cores];
-    std::cout << "threads to be scheduled";
+    //std::cout << "threads to be scheduled\n";
     for (i = 0; i < cores; i++)
     {
         schedule_threads[i] = std::thread(ScheduleProcesses, i, algorithm, context_switch, time_slice, &ready_queue, &mutex);
     }
-    std::cout << "threads scheduled";
+    //std::cout << "threads scheduled\n";
 
     // Main thread work goes here:
     //      While(not all terminated)
@@ -96,8 +96,13 @@ int main(int argc, char **argv)
                 }
             }
         }
-        // std::cout << ready_queue.size();
-        //PrintStatistics()
+        // std::cout << ready_queue.size()
+        for (int i=0; i<2+processes.size(); i++) {
+            fputs("\033[A\033[2K", stdout);
+        }
+        rewind(stdout);
+        PrintStatistics(processes, algorithm);
+        usleep(100000);
     }
     processesTerminated = true;
     //          Check state of each process, if not started, check start time and start
@@ -200,10 +205,6 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
 }
 
 void PrintStatistics(std::vector<Process*> processes, ScheduleAlgorithm algorithm) {
-    for (int i=0; i<2+processes.size(); i++) {
-            fputs("\033[A\033[2K", stdout);
-    }
-    rewind(stdout);
     std::cout << "|   PID | Priority |       State | Core |  Turn Time |  Wait Time |   CPU Time | Remain Time |\n";
     std::cout << "+-------+----------+-------------+------+------------+------------+------------+-------------+\n";
     for(int i = 0; i<processes.size(); i++){
@@ -224,7 +225,7 @@ void PrintStatistics(std::vector<Process*> processes, ScheduleAlgorithm algorith
             k--;
         }
         //Priority
-        if(algorithm == 'PP') {
+        if(algorithm == ScheduleAlgorithm::PP) {
             processLine[17] = priority[0];
         }
         else {
