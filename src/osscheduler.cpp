@@ -147,6 +147,7 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
     uint32_t start;
     uint32_t end;
     uint32_t time_elapsed;
+    uint32_t burst_elapsed = 0;
     while(!processesTerminated)
     {
         mutex->lock();
@@ -164,20 +165,20 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
             //std::cout << "CurrentTime: " << currentTime << "\n";
             
             //std::cout << "BurstTime: " << currentProcess->GetBurstTime() << "\n";
-            
-            while(currentTime - currentProcess->GetBurstStartTime() <= currentProcess->GetBurstTime())
+            burst_elapsed = 0;
+            while(burst_elapsed < currentProcess->GetBurstTime() && currentProcess->GetRemainingTime() > 0)
             {
                 //std::cout << "Time: " << currentTime - currentProcess->GetBurstStartTime() << "\n";
                 //Simulate Process running
                 start = clock();
                 currentProcess->SetState(Process::State::Running);
                 end = clock();
-                time_elapsed = (end - start)/1000;
+                time_elapsed = (end/1000) - (start/1000);
                 //currentProcess->CalcTurnaroundTime();
                 //currentProcess->CalcWaitTime(time_elapsed);
                 //currentProcess->CalcCpuTime(time_elapsed);
                 currentProcess->SetRemainingTime(time_elapsed);
-                currentTime = clock()/1000;
+                burst_elapsed = burst_elapsed + time_elapsed;
             }
             currentProcess->UpdateCurrentBurst();
             //Place process back in queue
@@ -190,6 +191,7 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
             {
                 currentProcess->SetCpuCore(-1);
                 currentProcess->SetState(Process::State::IO);
+                currentProcess->SetBurstStartTime();
             }
 
             //wait context switching time
