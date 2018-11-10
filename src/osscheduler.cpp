@@ -28,11 +28,8 @@ int main(int argc, char **argv)
     }
 
     // Read configuration file for scheduling simulation
-    std::cout << "before everything\n";
     SchedulerConfig *config;
-    std::cout << "Before config file read\n";
     ReadConfigFile(argv[1], &config);
-    std::cout << "After config file read\n";
 
     // Store configuration parameters and create processes 
     int i;
@@ -51,7 +48,6 @@ int main(int argc, char **argv)
             ready_queue.push_back(p);
         }
     }
-    std::cout << "config done\n";
     // Free configuration data from memory
     DeleteConfig(&config);
 
@@ -60,19 +56,19 @@ int main(int argc, char **argv)
     std::clock_t start_time;
     std::clock_t current_time;
     start_time = clock() / 1000;
-    //std::cout << clock() - start_time << std::endl;
+
     // Launch 1 scheduling thread per cpu core
     std::mutex mutex;
     std::thread *schedule_threads = new std::thread[cores];
-    //std::cout << "threads to be scheduled\n";
+
     for (i = 0; i < cores; i++)
     {
         schedule_threads[i] = std::thread(ScheduleProcesses, i, algorithm, context_switch, time_slice, &ready_queue, &mutex);
     }
-    //std::cout << "threads scheduled\n";
+
 
     // Main thread work goes here:
-    //      While(not all terminated)
+
     int terminated = 0;
     while(terminated < processes.size())
     {
@@ -99,13 +95,13 @@ int main(int argc, char **argv)
                 }
             }
         }
-        // std::cout << ready_queue.size()
+
         for (int i=0; i<linesPrinted; i++) {
             fputs("\033[A\033[2K", stdout);
         }
         rewind(stdout);
         linesPrinted = PrintStatistics(processes, algorithm);
-        usleep(100000);
+        usleep(10000);
     }
     processesTerminated = true;
     //          Check state of each process, if not started, check start time and start
@@ -143,7 +139,6 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                        std::list<Process*> *ready_queue, std::mutex *mutex)
 {
     Process* currentProcess;
-    uint32_t currentTime;
     uint32_t start;
     uint32_t end;
     uint32_t time_elapsed;
@@ -159,26 +154,17 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
             ready_queue->pop_front();
             mutex->unlock();
             currentProcess->SetCpuCore(core_id);
-            currentTime = clock()/1000;
-            currentProcess->SetBurstStartTime();
-            //std::cout << "Core: " << core_id << "\nBurstStartTime: " << currentProcess->GetBurstStartTime() << "\n";
-            //std::cout << "CurrentTime: " << currentTime << "\n";
-            
-            //std::cout << "BurstTime: " << currentProcess->GetBurstTime() << "\n";
             burst_elapsed = 0;
+            currentProcess->SetState(Process::State::Running);
             while(burst_elapsed < currentProcess->GetBurstTime() && currentProcess->GetRemainingTime() > 0)
             {
-                //std::cout << "Time: " << currentTime - currentProcess->GetBurstStartTime() << "\n";
                 //Simulate Process running
                 start = clock();
-                currentProcess->SetState(Process::State::Running);
                 end = clock();
                 time_elapsed = (end/1000) - (start/1000);
-                //currentProcess->CalcTurnaroundTime();
-                //currentProcess->CalcWaitTime(time_elapsed);
-                //currentProcess->CalcCpuTime(time_elapsed);
                 currentProcess->SetRemainingTime(time_elapsed);
                 burst_elapsed = burst_elapsed + time_elapsed;
+                currentProcess->CalcCpuTime(time_elapsed);
             }
             currentProcess->UpdateCurrentBurst();
             //Place process back in queue

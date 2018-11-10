@@ -113,9 +113,9 @@ double Process::GetCpuTime()
     return (double)cpu_time / 1000.0;
 }
 
-void Process::CalcCpuTime()
+void Process::CalcCpuTime(uint32_t time_elapsed)
 {
-    return;
+    cpu_time = cpu_time + time_elapsed;
 }
 
 double Process::GetRemainingTime()

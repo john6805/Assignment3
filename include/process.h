@@ -42,7 +42,7 @@ public:
     double GetWaitTime();
     void CalcWaitTime();
     double GetCpuTime();
-    void CalcCpuTime();
+    void CalcCpuTime(uint32_t time_elapsed);
     double GetRemainingTime();
     void SetRemainingTime(int32_t newRemainTime);
 };
