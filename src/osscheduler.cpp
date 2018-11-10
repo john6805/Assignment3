@@ -158,20 +158,26 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
             ready_queue->pop_front();
             mutex->unlock();
             currentProcess->SetCpuCore(core_id);
-            currentTime = clock();
+            currentTime = clock()/1000;
             currentProcess->SetBurstStartTime();
-            while(currentProcess->GetBurstStartTime() - currentTime/1000 <= currentProcess->GetBurstTime())
+            //std::cout << "Core: " << core_id << "\nBurstStartTime: " << currentProcess->GetBurstStartTime() << "\n";
+            //std::cout << "CurrentTime: " << currentTime << "\n";
+            
+            //std::cout << "BurstTime: " << currentProcess->GetBurstTime() << "\n";
+            
+            while(currentTime - currentProcess->GetBurstStartTime() <= currentProcess->GetBurstTime())
             {
+                //std::cout << "Time: " << currentTime - currentProcess->GetBurstStartTime() << "\n";
                 //Simulate Process running
-                currentTime = clock();
-                start = clock();            
+                start = clock();
                 currentProcess->SetState(Process::State::Running);
                 end = clock();
                 time_elapsed = (end - start)/1000;
                 //currentProcess->CalcTurnaroundTime();
                 //currentProcess->CalcWaitTime(time_elapsed);
                 //currentProcess->CalcCpuTime(time_elapsed);
-                currentProcess->SetRemainingTime(1);
+                currentProcess->SetRemainingTime(time_elapsed);
+                currentTime = clock()/1000;
             }
             currentProcess->UpdateCurrentBurst();
             //Place process back in queue
