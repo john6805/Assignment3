@@ -12,7 +12,10 @@
 void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t context_switch, uint32_t time_slice,
                        std::list<Process*> *ready_queue, std::mutex *mutex);
 int PrintStatistics(std::vector<Process*> processes, ScheduleAlgorithm algorithm);
+void PPSort(std::list<Process*> *ready_queue);
+void SJFInsert(std::list<Process*> *ready_queue, Process* currentProcess);
 
+//global variables
 bool processesTerminated = false;
 
 int main(int argc, char **argv)
@@ -28,11 +31,8 @@ int main(int argc, char **argv)
     }
 
     // Read configuration file for scheduling simulation
-    std::cout << "before everything\n";
     SchedulerConfig *config;
-    std::cout << "Before config file read\n";
     ReadConfigFile(argv[1], &config);
-    std::cout << "After config file read\n";
 
     // Store configuration parameters and create processes 
     int i;
@@ -48,10 +48,16 @@ int main(int argc, char **argv)
         processes.push_back(p);
         if (p->GetState() == Process::State::Ready)
         {
-            ready_queue.push_back(p);
+            if(algorithm == ScheduleAlgorithm::SJF)
+            {
+                SJFInsert(&ready_queue, p);
+            }
+            else
+            {
+                ready_queue.push_back(p);
+            }         
         }
     }
-    std::cout << "config done\n";
     // Free configuration data from memory
     DeleteConfig(&config);
 
@@ -61,19 +67,17 @@ int main(int argc, char **argv)
     std::clock_t current_time;
     std::clock_t time_elapsed;
     start_time = clock() / 1000;
-    //std::cout << clock() - start_time << std::endl;
+    
     // Launch 1 scheduling thread per cpu core
     std::mutex mutex;
     std::thread *schedule_threads = new std::thread[cores];
-    //std::cout << "threads to be scheduled\n";
+    
     for (i = 0; i < cores; i++)
     {
         schedule_threads[i] = std::thread(ScheduleProcesses, i, algorithm, context_switch, time_slice, &ready_queue, &mutex);
     }
-    //std::cout << "threads scheduled\n";
 
     // Main thread work goes here:
-    //      While(not all terminated)
     int terminated = 0;
     while(terminated < processes.size())
     {
@@ -100,7 +104,14 @@ int main(int argc, char **argv)
                 {
                     processes[i]->SetState(Process::State::Ready);
                     processes[i]->UpdateCurrentBurst();
-                    ready_queue.push_back(processes[i]);
+                    if(algorithm == ScheduleAlgorithm::SJF)
+                    {
+                        SJFInsert(&ready_queue, processes[i]);
+                    }
+                    else
+                    {
+                        ready_queue.push_back(processes[i]);
+                    }               
                 }
             }
             else if(processes[i]->GetState() == Process::State::Ready)
@@ -109,9 +120,11 @@ int main(int argc, char **argv)
                 time_elapsed = clock()/1000 - current_time;
                 processes[i]->CalcWaitTime(1);
                 processes[i]->CalcTurnaroundTime(1);
-            }
+            }      
         }
-        // std::cout << ready_queue.size()
+        //sort ready queue based on scheduling algorithm
+
+
         for (int i=0; i<linesPrinted; i++) {
             fputs("\033[A\033[2K", stdout);
         }
@@ -155,11 +168,11 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                        std::list<Process*> *ready_queue, std::mutex *mutex)
 {
     Process* currentProcess;
-    uint32_t currentTime;
     uint32_t start;
     uint32_t end;
     uint32_t time_elapsed;
     uint32_t burst_elapsed = 0;
+    uint32_t burst_time;
     while(!processesTerminated)
     {
         mutex->lock();
@@ -171,24 +184,18 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
             ready_queue->pop_front();
             mutex->unlock();
             currentProcess->SetCpuCore(core_id);
-            currentTime = clock()/1000;
-            currentProcess->SetBurstStartTime();
-            //std::cout << "Core: " << core_id << "\nBurstStartTime: " << currentProcess->GetBurstStartTime() << "\n";
-            //std::cout << "CurrentTime: " << currentTime << "\n";
-            
-            //std::cout << "BurstTime: " << currentProcess->GetBurstTime() << "\n";
+            burst_time = currentProcess->GetBurstTime();
             burst_elapsed = 0;
-            while(burst_elapsed < currentProcess->GetBurstTime() && currentProcess->GetRemainingTime() > 0)
+            while(burst_elapsed < burst_time && currentProcess->GetRemainingTime() > 0)
             {
-                //std::cout << "Time: " << currentTime - currentProcess->GetBurstStartTime() << "\n";
                 //Simulate Process running
                 start = clock();
                 currentProcess->SetState(Process::State::Running);
                 end = clock();
                 time_elapsed = (end/1000) - (start/1000);
+                currentProcess->SetRemainingTime(time_elapsed);
                 currentProcess->CalcTurnaroundTime(time_elapsed);
                 currentProcess->CalcCpuTime(time_elapsed);
-                currentProcess->SetRemainingTime(time_elapsed);
                 burst_elapsed = burst_elapsed + time_elapsed;
             }
             currentProcess->UpdateCurrentBurst();
@@ -349,4 +356,21 @@ int PrintStatistics(std::vector<Process*> processes, ScheduleAlgorithm algorithm
         }
     }
     return linesPrinted;
+}
+
+void SJFInsert(std::list<Process*> *ready_queue, Process* currentProcess)
+{
+    std::list<Process*>::iterator it;
+    for(it = ready_queue->begin(); it != ready_queue->end(); ++it)
+    {
+        if(currentProcess->GetRemainingTime() < (*it)->GetRemainingTime())
+        {
+            ready_queue->insert(it, currentProcess);
+            return;
+        }
+    }
+    if(it == ready_queue->end())
+    {
+        ready_queue->push_back(currentProcess);
+    }
 }

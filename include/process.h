@@ -44,7 +44,7 @@ public:
     double GetCpuTime();
     void CalcCpuTime(int32_t time_elapsed);
     double GetRemainingTime();
-    void SetRemainingTime(int32_t newRemainTime);
+    void SetRemainingTime(int32_t time_elapsed);
 };
 
 #endif // __PROCESS_H_
