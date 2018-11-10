@@ -92,9 +92,9 @@ double Process::GetTurnaroundTime()
     return (double)turn_time / 1000.0;
 }
 
-void Process::CalcTurnaroundTime()
+void Process::CalcTurnaroundTime(int32_t time_elapsed)
 {
-    turn_time = clock()-start_time;
+    turn_time = turn_time + time_elapsed;
     return;
 }
 
@@ -103,8 +103,9 @@ double Process::GetWaitTime()
     return (double)wait_time / 1000.0;
 }
 
-void Process::CalcWaitTime()
+void Process::CalcWaitTime(int32_t time_elapsed)
 {
+    wait_time = wait_time + time_elapsed;
     return;
 }
 
@@ -113,8 +114,9 @@ double Process::GetCpuTime()
     return (double)cpu_time / 1000.0;
 }
 
-void Process::CalcCpuTime()
+void Process::CalcCpuTime(int32_t time_elapsed)
 {
+    cpu_time = cpu_time + time_elapsed;
     return;
 }
 

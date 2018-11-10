@@ -59,6 +59,7 @@ int main(int argc, char **argv)
     //start timer
     std::clock_t start_time;
     std::clock_t current_time;
+    std::clock_t time_elapsed;
     start_time = clock() / 1000;
     //std::cout << clock() - start_time << std::endl;
     // Launch 1 scheduling thread per cpu core
@@ -80,6 +81,7 @@ int main(int argc, char **argv)
         for(int i = 0; i < processes.size(); i++)
         {
             current_time = clock() / 1000;
+            //usleep(1);
             if(processes[i]->GetState() == Process::State::Terminated)
             {
                 terminated++;
@@ -91,12 +93,22 @@ int main(int argc, char **argv)
             }
             else if(processes[i]->GetState() == Process::State::IO) 
             {
+                //time_elapsed is not working (value is too small)
+                time_elapsed = (clock()/1000) - current_time;
+                processes[i]->CalcTurnaroundTime(time_elapsed);
                 if((current_time - processes[i]->GetBurstStartTime()) >= processes[i]->GetBurstTime())
                 {
                     processes[i]->SetState(Process::State::Ready);
                     processes[i]->UpdateCurrentBurst();
                     ready_queue.push_back(processes[i]);
                 }
+            }
+            else if(processes[i]->GetState() == Process::State::Ready)
+            {
+                //time_elapsed is not working (value is too small)
+                time_elapsed = clock()/1000 - current_time;
+                processes[i]->CalcWaitTime(1);
+                processes[i]->CalcTurnaroundTime(1);
             }
         }
         // std::cout << ready_queue.size()
@@ -174,9 +186,8 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                 currentProcess->SetState(Process::State::Running);
                 end = clock();
                 time_elapsed = (end/1000) - (start/1000);
-                //currentProcess->CalcTurnaroundTime();
-                //currentProcess->CalcWaitTime(time_elapsed);
-                //currentProcess->CalcCpuTime(time_elapsed);
+                currentProcess->CalcTurnaroundTime(time_elapsed);
+                currentProcess->CalcCpuTime(time_elapsed);
                 currentProcess->SetRemainingTime(time_elapsed);
                 burst_elapsed = burst_elapsed + time_elapsed;
             }
@@ -186,6 +197,7 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
             {
                 currentProcess->SetCpuCore(-1);
                 currentProcess->SetState(Process::State::Terminated);
+                
             }
             else
             {

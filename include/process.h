@@ -38,11 +38,11 @@ public:
     int8_t GetCpuCore();
     void SetCpuCore(int8_t Core);
     double GetTurnaroundTime();
-    void CalcTurnaroundTime();
+    void CalcTurnaroundTime(int32_t time_elapsed);
     double GetWaitTime();
-    void CalcWaitTime();
+    void CalcWaitTime(int32_t time_elapsed);
     double GetCpuTime();
-    void CalcCpuTime();
+    void CalcCpuTime(int32_t time_elapsed);
     double GetRemainingTime();
     void SetRemainingTime(int32_t newRemainTime);
 };
