@@ -84,14 +84,14 @@ int main(int argc, char **argv)
             {
                 terminated++;
             }
-            if (processes[i]->GetState() == Process::State::NotStarted && (current_time - start_time) >= processes[i]->GetStartTime())
+            if (processes[i]->GetState() == Process::State::NotStarted && (current_time - start_time)/1000 >= processes[i]->GetStartTime())
             {
                 processes[i]->SetState(Process::State::Ready);
                 ready_queue.push_back(processes[i]);
             }
             else if(processes[i]->GetState() == Process::State::IO) 
             {
-                if(current_time - processes[i]->GetBurstStartTime() >= processes[i]->GetBurstTime())
+                if((current_time - processes[i]->GetBurstStartTime())/1000 >= processes[i]->GetBurstTime())
                 {
                     processes[i]->SetState(Process::State::Ready);
                     processes[i]->UpdateCurrentBurst();
@@ -160,18 +160,18 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
             currentProcess->SetCpuCore(core_id);
             currentTime = clock();
             currentProcess->SetBurstStartTime();
-            while(currentProcess->GetBurstStartTime() - currentTime <= currentProcess->GetBurstTime())
+            while(currentProcess->GetBurstStartTime() - currentTime/1000 <= currentProcess->GetBurstTime())
             {
                 //Simulate Process running
                 currentTime = clock();
                 start = clock();            
                 currentProcess->SetState(Process::State::Running);
                 end = clock();
-                time_elapsed = end - start;
-                currentProcess->CalcTurnaroundTime();
+                time_elapsed = (end - start)/1000;
+                //currentProcess->CalcTurnaroundTime();
                 //currentProcess->CalcWaitTime(time_elapsed);
                 //currentProcess->CalcCpuTime(time_elapsed);
-                currentProcess->SetRemainingTime(time_elapsed);
+                currentProcess->SetRemainingTime(1);
             }
             currentProcess->UpdateCurrentBurst();
             //Place process back in queue

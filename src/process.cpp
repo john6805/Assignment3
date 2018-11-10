@@ -73,7 +73,7 @@ uint32_t Process::GetBurstStartTime()
 
 void Process::SetBurstStartTime()
 {
-    burst_start_time = clock();
+    burst_start_time = clock()/1000;
 }
 int8_t Process::GetCpuCore()
 {
