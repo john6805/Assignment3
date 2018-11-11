@@ -14,6 +14,8 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
 int PrintStatistics(std::vector<Process*> processes, ScheduleAlgorithm algorithm);
 void PPInsert(std::list<Process*> *ready_queue, Process* currentProcess);
 void SJFInsert(std::list<Process*> *ready_queue, Process* currentProcess);
+double printTurnTime(std::vector<Process*> processes);
+double printWaitTime(std::vector<Process*> processes);
 
 //global variables
 bool processesTerminated = false;
@@ -67,10 +69,14 @@ int main(int argc, char **argv)
 
     int linesPrinted = PrintStatistics(processes, algorithm);
     //start timer
-    std::clock_t start_time;
-    std::clock_t current_time;
-    std::clock_t time_elapsed;
+    uint32_t start_time;
+    uint32_t current_time;
+    uint32_t time_elapsed;
     start_time = clock() / 1000;
+    double throughputFirstHalf = 0.0;
+    double throughputSecondHalf = 0.0;
+    double timeHalf = 0.0;
+    double time2ndHalf = 0.0;
     
     // Launch 1 scheduling thread per cpu core
     std::mutex mutex;
@@ -93,6 +99,14 @@ int main(int argc, char **argv)
             if(processes[i]->GetState() == Process::State::Terminated)
             {
                 terminated++;
+                if(terminated == processes.size()/2) {
+                    timeHalf = (current_time - start_time)/1000.0;
+                    throughputFirstHalf = (terminated*1.0)/timeHalf;
+                }
+                /*else if (terminated == processes.size()) {
+                    time2ndHalf = current_time - start_time - timeHalf;
+                    throughputSecondHalf = (terminated*1.0-processes.size()/2)/(time2ndHalf/1000.0);
+                }*/
             }
             if (processes[i]->GetState() == Process::State::NotStarted && (current_time - start_time) >= processes[i]->GetStartTime())
             {
@@ -137,8 +151,8 @@ int main(int argc, char **argv)
             {
                 //time_elapsed is not working (value is too small)
                 time_elapsed = clock()/1000 - current_time;
-                processes[i]->CalcWaitTime(1);
-                processes[i]->CalcTurnaroundTime(1);
+                processes[i]->CalcWaitTime(time_elapsed);
+                processes[i]->CalcTurnaroundTime(time_elapsed);
             }      
         }
         //sort ready queue based on scheduling algorithm
@@ -152,6 +166,9 @@ int main(int argc, char **argv)
         usleep(100000);
     }
     processesTerminated = true;
+    current_time = clock() / 1000;
+    time2ndHalf = (current_time - start_time)/1000.0 - timeHalf;
+    throughputSecondHalf = (processes.size()-processes.size()/2)/time2ndHalf;
     //          Check state of each process, if not started, check start time and start
     //          if in io check io time and add to ready
     //  - Start new processes at their appropriate start time
@@ -166,7 +183,20 @@ int main(int argc, char **argv)
         schedule_threads[i].join();
     }
 
+    
     //std::cout << calcCPUUtil() << "\n";
+    std::cout << "Time Start: " << start_time << "\n";
+    std::cout << "Time Half: " << timeHalf << "\n";
+    std::cout << "# of processes: " << processes.size()/2 << "\n";
+    std::cout << "Throughput First Half: " << throughputFirstHalf << "\n";
+    std::cout << "Current time: " << current_time << "\n";
+    std::cout << "Time 2nd Half: " << time2ndHalf << "\n";
+    std::cout << "# of processes: " << processes.size()-processes.size()/2 << "\n";
+    std::cout << "Throughput Second Half: " << throughputSecondHalf << "\n";
+    std::cout << "Average Throughput: " << processes.size()/time2ndHalf << "\n";
+    std::cout << "Average Turnaround Time: " << printTurnTime(processes) << "\n";
+    std::cout << "Average Wait Time: " << printWaitTime(processes) << "\n";
+    
     // Print final statistics
     //  - CPU utilization
     //  - Throughput
@@ -192,6 +222,10 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
     uint32_t time_elapsed;
     uint32_t burst_elapsed = 0;
     uint32_t burst_time;
+    double threadstarted = clock();
+    double throughputFirstHalf = 0.0;
+    double throughputSecondHalf = 0.0;
+    
     while(!processesTerminated)
     {
         if(algorithm == ScheduleAlgorithm::FCFS || algorithm == ScheduleAlgorithm::SJF)
@@ -436,6 +470,22 @@ int PrintStatistics(std::vector<Process*> processes, ScheduleAlgorithm algorithm
         }
     }
     return linesPrinted;
+}
+
+double printTurnTime(std::vector<Process*> processes) {
+    double avgTurnTime = 0.0;
+    for (int i = 0; i < processes.size(); i++) {
+        avgTurnTime += processes[i]->GetTurnaroundTime();
+    }
+    return avgTurnTime/processes.size();
+}
+
+double printWaitTime(std::vector<Process*> processes) {
+    double avgWaitTime = 0.0;
+    for (int i = 0; i < processes.size(); i++) {
+        avgWaitTime += processes[i]->GetWaitTime();
+    }
+    return avgWaitTime/processes.size();
 }
 
 void SJFInsert(std::list<Process*> *ready_queue, Process* currentProcess)
