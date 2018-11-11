@@ -13,7 +13,7 @@ private:
     uint16_t num_bursts;
     uint16_t current_burst;
     uint32_t *burst_times;
-    uint32_t burst_start_time;
+    std::chrono::high_resolution_clock::time_point burst_start_time;
     uint32_t burst_elapsed;
     uint8_t priority;
     State state;
@@ -33,7 +33,7 @@ public:
     State GetState();
     void SetState(Process::State input);
     uint32_t GetBurstTime();
-    uint32_t GetBurstStartTime();
+    std::chrono::high_resolution_clock::time_point GetBurstStartTime();
     void SetBurstStartTime();
     void UpdateCurrentBurst();
     int8_t GetCpuCore();

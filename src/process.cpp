@@ -67,14 +67,14 @@ void Process::UpdateCurrentBurst()
     current_burst = current_burst + 1;
 }
 
-uint32_t Process::GetBurstStartTime()
+std::chrono::high_resolution_clock::time_point Process::GetBurstStartTime()
 {
     return burst_start_time;
 }
 
 void Process::SetBurstStartTime()
 {
-    burst_start_time = clock()/1000;
+    burst_start_time = std::chrono::high_resolution_clock::now();
 }
 int8_t Process::GetCpuCore()
 {
