@@ -24,6 +24,7 @@ Process::Process(ProcessDetails details)
     {
         remain_time += burst_times[i];
     }
+    burst_elapsed = 0;
 }
 
 Process::~Process()
@@ -129,4 +130,14 @@ void Process::SetRemainingTime(int32_t time_elapsed)
 {
     remain_time = remain_time - time_elapsed;
     return;
+}
+
+uint32_t Process::GetBurstElapsed()
+{
+    return burst_elapsed;
+}
+
+void Process::SetBurstElapsed(uint32_t time_elapsed)
+{
+    burst_elapsed = burst_elapsed + time_elapsed;
 }

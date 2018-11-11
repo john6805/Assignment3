@@ -12,7 +12,7 @@
 void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t context_switch, uint32_t time_slice,
                        std::list<Process*> *ready_queue, std::mutex *mutex);
 int PrintStatistics(std::vector<Process*> processes, ScheduleAlgorithm algorithm);
-void PPSort(std::list<Process*> *ready_queue);
+void PPInsert(std::list<Process*> *ready_queue, Process* currentProcess);
 void SJFInsert(std::list<Process*> *ready_queue, Process* currentProcess);
 
 //global variables
@@ -51,6 +51,10 @@ int main(int argc, char **argv)
             if(algorithm == ScheduleAlgorithm::SJF)
             {
                 SJFInsert(&ready_queue, p);
+            }
+            else if(algorithm == ScheduleAlgorithm::PP)
+            {
+                PPInsert(&ready_queue, p);
             }
             else
             {
@@ -93,7 +97,18 @@ int main(int argc, char **argv)
             if (processes[i]->GetState() == Process::State::NotStarted && (current_time - start_time) >= processes[i]->GetStartTime())
             {
                 processes[i]->SetState(Process::State::Ready);
-                ready_queue.push_back(processes[i]);
+                if(algorithm == ScheduleAlgorithm::SJF)
+                {
+                    SJFInsert(&ready_queue, processes[i]);
+                }
+                else if(algorithm == ScheduleAlgorithm::PP)
+                {
+                    PPInsert(&ready_queue, processes[i]);
+                }
+                else
+                {
+                    ready_queue.push_back(processes[i]);
+                }    
             }
             else if(processes[i]->GetState() == Process::State::IO) 
             {
@@ -108,10 +123,14 @@ int main(int argc, char **argv)
                     {
                         SJFInsert(&ready_queue, processes[i]);
                     }
+                    else if(algorithm == ScheduleAlgorithm::PP)
+                    {
+                        PPInsert(&ready_queue, processes[i]);
+                    }
                     else
                     {
                         ready_queue.push_back(processes[i]);
-                    }               
+                    }                 
                 }
             }
             else if(processes[i]->GetState() == Process::State::Ready)
@@ -175,54 +194,115 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
     uint32_t burst_time;
     while(!processesTerminated)
     {
-        mutex->lock();
-        //Get process at front of ready queue
-        if(!ready_queue->empty())
+        if(algorithm == ScheduleAlgorithm::FCFS || algorithm == ScheduleAlgorithm::SJF)
         {
-            //if(First Come First Serve)
-            currentProcess = ready_queue->front();
-            ready_queue->pop_front();
-            mutex->unlock();
-            currentProcess->SetCpuCore(core_id);
-            burst_time = currentProcess->GetBurstTime();
-            burst_elapsed = 0;
-            while(burst_elapsed < burst_time && currentProcess->GetRemainingTime() > 0)
+            mutex->lock();
+            //Get process at front of ready queue
+            if(!ready_queue->empty())
             {
-                //Simulate Process running
-                start = clock();
-                currentProcess->SetState(Process::State::Running);
-                end = clock();
-                time_elapsed = (end/1000) - (start/1000);
-                currentProcess->SetRemainingTime(time_elapsed);
-                currentProcess->CalcTurnaroundTime(time_elapsed);
-                currentProcess->CalcCpuTime(time_elapsed);
-                burst_elapsed = burst_elapsed + time_elapsed;
-            }
-            currentProcess->UpdateCurrentBurst();
-            //Place process back in queue
-            if(currentProcess->GetRemainingTime() <= 0)
-            {
-                currentProcess->SetCpuCore(-1);
-                currentProcess->SetState(Process::State::Terminated);
-                
-            }
-            else
-            {
-                currentProcess->SetCpuCore(-1);
-                currentProcess->SetState(Process::State::IO);
-                currentProcess->SetBurstStartTime();
+                currentProcess = ready_queue->front();
+                ready_queue->pop_front();
+                mutex->unlock();
+                currentProcess->SetCpuCore(core_id);
+                burst_time = currentProcess->GetBurstTime();
+                burst_elapsed = 0;
+                while(burst_elapsed < burst_time && currentProcess->GetRemainingTime() > 0)
+                {
+                    //Simulate Process running
+                    start = clock();
+                    currentProcess->SetState(Process::State::Running);
+                    end = clock();
+                    time_elapsed = (end/1000) - (start/1000);
+                    currentProcess->SetRemainingTime(time_elapsed);
+                    currentProcess->CalcTurnaroundTime(time_elapsed);
+                    currentProcess->CalcCpuTime(time_elapsed);
+                    burst_elapsed = burst_elapsed + time_elapsed;
+                }
+                currentProcess->UpdateCurrentBurst();
+                //Place process back in queue
+                if(currentProcess->GetRemainingTime() <= 0)
+                {
+                    currentProcess->SetCpuCore(-1);
+                    currentProcess->SetState(Process::State::Terminated);
+                    
+                }
+                else
+                {
+                    currentProcess->SetCpuCore(-1);
+                    currentProcess->SetState(Process::State::IO);
+                    currentProcess->SetBurstStartTime();
+                }
+                //wait context switching time
+                usleep(context_switch);
             }
 
-            //wait context switching time
-            usleep(context_switch);
+            if(algorithm == ScheduleAlgorithm::PP)
+            {
+                mutex->lock();
+                //Get process at front of ready queue
+                if(!ready_queue->empty())
+                {
+                    currentProcess = ready_queue->front();
+                    ready_queue->pop_front();
+                    mutex->unlock();
+                    currentProcess->SetCpuCore(core_id);
+                    burst_time = currentProcess->GetBurstTime();
+                    burst_elapsed = currentProcess->GetBurstElapsed();
+                    while(burst_elapsed < burst_time && currentProcess->GetRemainingTime() > 0)
+                    {
+                        //Simulate Process running
+                        start = clock();
+                        currentProcess->SetState(Process::State::Running);
+                        end = clock();
+                        time_elapsed = (end/1000) - (start/1000);
+                        currentProcess->SetRemainingTime(time_elapsed);
+                        currentProcess->CalcTurnaroundTime(time_elapsed);
+                        currentProcess->CalcCpuTime(time_elapsed);
+                        burst_elapsed = burst_elapsed + time_elapsed;
+                        mutex->lock();
+                        if(!ready_queue->empty() && ready_queue->front()->GetPriority() > currentProcess->GetPriority())
+                        {
+                            //Put process in ready queue then pop front of ready queue
+                            currentProcess->SetBurstElapsed(burst_elapsed);
+                            PPInsert(ready_queue, currentProcess);
+                            currentProcess = ready_queue->front();
+                            ready_queue->pop_front();
+                            mutex->unlock();
+                            currentProcess->SetCpuCore(core_id);
+                            burst_time = currentProcess->GetBurstTime();
+                            burst_elapsed = currentProcess->GetBurstElapsed();
+                        }
+                    }
+                    currentProcess->UpdateCurrentBurst();
+                    currentProcess->SetBurstElapsed(0);
+                    //Place process back in queue
+                    if(!ready_queue->empty() && ready_queue->front()->GetPriority() > currentProcess->GetPriority())
+                    {
+                        PPInsert(ready_queue, currentProcess);
+                    }
+                    if(currentProcess->GetRemainingTime() <= 0)
+                    {
+                        currentProcess->SetCpuCore(-1);
+                        currentProcess->SetState(Process::State::Terminated);
+                    }
+                    else
+                    {
+                        currentProcess->SetCpuCore(-1);
+                        currentProcess->SetState(Process::State::IO);
+                        currentProcess->SetBurstStartTime();
+                    }
+                    //wait context switching time
+                    usleep(context_switch);
+                }
 
-            //if(Round Robin)
-            //if(Shortest Job First)
-            //if(Premptive Priority)
-        }
-        else 
-        {
-            mutex->unlock();
+                //if(Round Robin)
+                //if(Shortest Job First)
+                //if(Premptive Priority)
+            }
+            else 
+            {
+                mutex->unlock();
+            }
         }
         
         //  - Simulate the processes running until one of the following:
@@ -364,6 +444,23 @@ void SJFInsert(std::list<Process*> *ready_queue, Process* currentProcess)
     for(it = ready_queue->begin(); it != ready_queue->end(); ++it)
     {
         if(currentProcess->GetRemainingTime() < (*it)->GetRemainingTime())
+        {
+            ready_queue->insert(it, currentProcess);
+            return;
+        }
+    }
+    if(it == ready_queue->end())
+    {
+        ready_queue->push_back(currentProcess);
+    }
+}
+
+void PPInsert(std::list<Process*> *ready_queue, Process* currentProcess)
+{
+    std::list<Process*>::iterator it;
+    for(it = ready_queue->begin(); it != ready_queue->end(); ++it)
+    {
+        if(currentProcess->GetPriority() < (*it)->GetPriority())
         {
             ready_queue->insert(it, currentProcess);
             return;

@@ -14,6 +14,7 @@ private:
     uint16_t current_burst;
     uint32_t *burst_times;
     uint32_t burst_start_time;
+    uint32_t burst_elapsed;
     uint8_t priority;
     State state;
     int8_t core;
@@ -45,6 +46,8 @@ public:
     void CalcCpuTime(int32_t time_elapsed);
     double GetRemainingTime();
     void SetRemainingTime(int32_t time_elapsed);
+    uint32_t GetBurstElapsed();
+    void SetBurstElapsed(uint32_t time_elapsed);
 };
 
 #endif // __PROCESS_H_
