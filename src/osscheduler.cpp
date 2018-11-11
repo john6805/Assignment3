@@ -110,6 +110,11 @@ int main(int argc, char **argv)
                     throughputSecondHalf = (terminated*1.0-processes.size()/2)/(time2ndHalf/1000.0);
                 }*/
             }
+            else
+            {
+                processes[i]->CalcTurnaroundTime(time_elapsed.count() * 1000);
+            }
+            
             if (processes[i]->GetState() == Process::State::NotStarted && (time_elapsed.count() * 1000) >= processes[i]->GetStartTime())
             {
                 processes[i]->SetState(Process::State::Ready);
@@ -130,7 +135,7 @@ int main(int argc, char **argv)
             {
                 //time_elapsed is not working (value is too small)
                 time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - processes[i]->GetBurstStartTime());
-                processes[i]->CalcTurnaroundTime(time_elapsed.count() * 1000);
+                //processes[i]->CalcTurnaroundTime(time_elapsed.count() * 1000);
                 if((time_elapsed.count() * 1000) >= processes[i]->GetBurstTime())
                 {
                     processes[i]->SetState(Process::State::Ready);
@@ -154,7 +159,7 @@ int main(int argc, char **argv)
                 //time_elapsed is not working (value is too small)
                 time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - start_time);
                 processes[i]->CalcWaitTime(time_elapsed.count() * 1000);
-                processes[i]->CalcTurnaroundTime(time_elapsed.count() * 1000);
+                //processes[i]->CalcTurnaroundTime(time_elapsed.count() * 1000);
             }      
         }
         //sort ready queue based on scheduling algorithm
@@ -261,7 +266,7 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                     end = timer.now();
                     time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
                     currentProcess->SetRemainingTime(time_elapsed.count() * 1000);
-                    currentProcess->CalcTurnaroundTime(time_elapsed.count() * 1000);
+                    //currentProcess->CalcTurnaroundTime(time_elapsed.count() * 1000);
                     currentProcess->CalcCpuTime(time_elapsed.count() * 1000);
                     burst_elapsed = burst_elapsed + (time_elapsed.count() * 1000);
                     
@@ -316,7 +321,7 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                     end = timer.now();
                     time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
                     currentProcess->SetRemainingTime(time_elapsed.count() * 1000);
-                    currentProcess->CalcTurnaroundTime(time_elapsed.count() * 1000);
+                    //currentProcess->CalcTurnaroundTime(time_elapsed.count() * 1000);
                     currentProcess->CalcCpuTime(time_elapsed.count() * 1000);
                     burst_elapsed = burst_elapsed + (time_elapsed.count() * 1000);
                     mutex->lock();

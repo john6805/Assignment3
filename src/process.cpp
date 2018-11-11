@@ -95,7 +95,7 @@ double Process::GetTurnaroundTime()
 
 void Process::CalcTurnaroundTime(int32_t time_elapsed)
 {
-    turn_time = turn_time + time_elapsed;
+    turn_time = time_elapsed;
     return;
 }
 
