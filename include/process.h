@@ -2,6 +2,7 @@
 #define __PROCESS_H_
 
 #include "configreader.h"
+#include "chrono"
 
 class Process {
 public:
@@ -13,7 +14,9 @@ private:
     uint16_t num_bursts;
     uint16_t current_burst;
     uint32_t *burst_times;
+    std::chrono::high_resolution_clock::time_point process_start_time;
     std::chrono::high_resolution_clock::time_point burst_start_time;
+    std::chrono::high_resolution_clock::time_point ready_queue_entry_time;
     uint32_t burst_elapsed;
     uint8_t priority;
     State state;
@@ -33,8 +36,12 @@ public:
     State GetState();
     void SetState(Process::State input);
     uint32_t GetBurstTime();
+    std::chrono::high_resolution_clock::time_point GetProcessStartTime();
+    void SetProcessStartTime();
     std::chrono::high_resolution_clock::time_point GetBurstStartTime();
     void SetBurstStartTime();
+    std::chrono::high_resolution_clock::time_point GetReadyQueueEntryTime();
+    void SetReadyQueueEntryTime(std::chrono::high_resolution_clock::time_point now);
     void UpdateCurrentBurst();
     int8_t GetCpuCore();
     void SetCpuCore(int8_t Core);

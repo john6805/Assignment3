@@ -25,6 +25,7 @@ int main(int argc, char **argv)
 {
     time_t start, end;
     time (&start);
+    std::chrono::high_resolution_clock timer;
     
     // Ensure user entered a command line parameter for configuration file name
     if (argc < 2)
@@ -51,6 +52,8 @@ int main(int argc, char **argv)
         processes.push_back(p);
         if (p->GetState() == Process::State::Ready)
         {
+            processes[i]->SetReadyQueueEntryTime(timer.now());
+            processes[i]->SetProcessStartTime();
             if(algorithm == ScheduleAlgorithm::SJF)
             {
                 SJFInsert(&ready_queue, p);
@@ -68,13 +71,14 @@ int main(int argc, char **argv)
     // Free configuration data from memory
     DeleteConfig(&config);
 
+    PrintStatistics(processes, algorithm);
     int linesPrinted = PrintStatistics(processes, algorithm);
     //start timer
-    std::chrono::high_resolution_clock timer;
+    
     std::chrono::high_resolution_clock::time_point start_time;
     std::chrono::high_resolution_clock::time_point current_time;
     std::chrono::duration<double> time_elapsed;
-    start_time = timer.now();
+    std::chrono::duration<double> time_since_start;
     double throughputFirstHalf = 0.0;
     double throughputSecondHalf = 0.0;
     double timeHalf = 0.0;
@@ -88,16 +92,20 @@ int main(int argc, char **argv)
     {
         schedule_threads[i] = std::thread(ScheduleProcesses, i, algorithm, context_switch, time_slice, &ready_queue, &mutex);
     }
-
+    usleep(1000);
     // Main thread work goes here:
     int terminated = 0;
+    start_time = timer.now();
     while(terminated < processes.size())
     {
         terminated = 0;
         for(int i = 0; i < processes.size(); i++)
         {
             current_time = timer.now();
+            //auto current_time_s = std::chrono::time_point_cast<std::chrono::seconds>(current_time);
+            //auto value = current_time_s.time_since_epoch();
             time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - start_time);
+            time_since_start = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - processes[i]->GetProcessStartTime());
             if(processes[i]->GetState() == Process::State::Terminated)
             {
                 terminated++;
@@ -112,12 +120,14 @@ int main(int argc, char **argv)
             }
             else
             {
-                processes[i]->CalcTurnaroundTime(time_elapsed.count() * 1000);
+                processes[i]->CalcTurnaroundTime(time_since_start.count() * 1000);
             }
             
             if (processes[i]->GetState() == Process::State::NotStarted && (time_elapsed.count() * 1000) >= processes[i]->GetStartTime())
             {
                 processes[i]->SetState(Process::State::Ready);
+                processes[i]->SetReadyQueueEntryTime(timer.now());
+                processes[i]->SetProcessStartTime();
                 if(algorithm == ScheduleAlgorithm::SJF)
                 {
                     SJFInsert(&ready_queue, processes[i]);
@@ -134,12 +144,13 @@ int main(int argc, char **argv)
             else if(processes[i]->GetState() == Process::State::IO) 
             {
                 //time_elapsed is not working (value is too small)
-                time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - processes[i]->GetBurstStartTime());
+                //time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - processes[i]->GetBurstStartTime());
                 //processes[i]->CalcTurnaroundTime(time_elapsed.count() * 1000);
                 if((time_elapsed.count() * 1000) >= processes[i]->GetBurstTime())
                 {
                     processes[i]->SetState(Process::State::Ready);
                     processes[i]->UpdateCurrentBurst();
+                    processes[i]->SetReadyQueueEntryTime(timer.now());
                     if(algorithm == ScheduleAlgorithm::SJF)
                     {
                         SJFInsert(&ready_queue, processes[i]);
@@ -157,8 +168,9 @@ int main(int argc, char **argv)
             else if(processes[i]->GetState() == Process::State::Ready)
             {
                 //time_elapsed is not working (value is too small)
-                time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - start_time);
+                time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - processes[i]->GetReadyQueueEntryTime());
                 processes[i]->CalcWaitTime(time_elapsed.count() * 1000);
+                processes[i]->SetReadyQueueEntryTime(timer.now());
                 //processes[i]->CalcTurnaroundTime(time_elapsed.count() * 1000);
             }      
         }
@@ -237,10 +249,10 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
     uint32_t slice_elapsed;
     uint32_t burst_elapsed = 0;
     uint32_t burst_time;
-    double before = 0.0;
-    double after = 0.0;
+    std::chrono::high_resolution_clock::time_point before;
+    std::chrono::high_resolution_clock::time_point after;
     double threadstarted = clock()/1000.0;
-    double cpuUtil = 0.0;
+    std::chrono::duration<double> cpuUtil;
     
     while(!processesTerminated)
     {
@@ -250,7 +262,8 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
             //Get process at front of ready queue
             if(!ready_queue->empty())
             {
-                before = clock()/1000.0;
+                before = timer.now();
+                start = timer.now();
                 currentProcess = ready_queue->front();
                 ready_queue->pop_front();
                 mutex->unlock();
@@ -260,12 +273,12 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                 while(burst_elapsed < burst_time && currentProcess->GetRemainingTime() > 0)
                 {
                     //Simulate Process running
-                    start = timer.now();
+                    
                     currentProcess->SetState(Process::State::Running);
-                    usleep(1000);
                     end = timer.now();
                     time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
                     currentProcess->SetRemainingTime(time_elapsed.count() * 1000);
+                    start = timer.now();
                     //currentProcess->CalcTurnaroundTime(time_elapsed.count() * 1000);
                     currentProcess->CalcCpuTime(time_elapsed.count() * 1000);
                     burst_elapsed = burst_elapsed + (time_elapsed.count() * 1000);
@@ -275,16 +288,16 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                 //Place process back in queue
                 if(currentProcess->GetRemainingTime() <= 0)
                 {
-                    after = clock()/1000.0;
-                    cpuUtil += after-before;
+                    after = timer.now();
+                    cpuUtil += std::chrono::duration_cast<std::chrono::duration<double>>(after-before);
                     currentProcess->SetCpuCore(-1);
                     currentProcess->SetState(Process::State::Terminated);
                     
                 }
                 else
                 {
-                    after = clock()/1000.0;
-                    cpuUtil += after-before;
+                    after = timer.now();
+                    cpuUtil += std::chrono::duration_cast<std::chrono::duration<double>>(after-before);
                     currentProcess->SetCpuCore(-1);
                     currentProcess->SetState(Process::State::IO);
                     currentProcess->SetBurstStartTime();
@@ -305,7 +318,7 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
             //Get process at front of ready queue
             if(!ready_queue->empty())
             {
-                before = clock()/1000.0;
+                before = timer.now();
                 currentProcess = ready_queue->front();
                 ready_queue->pop_front();
                 mutex->unlock();
@@ -354,17 +367,16 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                 }
                 if(currentProcess->GetRemainingTime() <= 0)
                 {
-                    after = clock()/1000.0;
-                    cpuUtil += after-before;
+                    after = timer.now();
+                    cpuUtil += std::chrono::duration_cast<std::chrono::duration<double>>(after-before);
                     currentProcess->SetCpuCore(-1);
                     currentProcess->SetState(Process::State::Terminated);
-                    after = clock()/1000.0;
-                    cpuUtil += after-before;
+                    after = timer.now();
                 }
                 else
                 {
-                    after = clock()/1000.0;
-                    cpuUtil += after-before;
+                    after = timer.now();
+                    cpuUtil += std::chrono::duration_cast<std::chrono::duration<double>>(after-before);
                     currentProcess->SetCpuCore(-1);
                     currentProcess->SetState(Process::State::IO);
                     currentProcess->SetBurstStartTime();
@@ -389,27 +401,29 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
         //  - Wait context switching time
         //  - Repeat until all processes in terminated state
     }
-    after = clock()/1000.0;
+    after = timer.now();
+    auto after_s = std::chrono::time_point_cast<std::chrono::seconds>(after);
+    auto value = after_s.time_since_epoch();
     
     if (core_id == 0) {
     //std::cout << "Core 0, CPU time: " << cpuUtil << "\n";
     //std::cout << "Core 0, CPU Util: " << (cpuUtil/after)*100 << "%\n";
-    CPUUtilCore[0] = (cpuUtil/after)*100;
+    CPUUtilCore[0] = (cpuUtil.count()/value.count())*100;
     }
     else if (core_id == 1) {
     //std::cout << "Core 1, CPU: " << cpuUtil << "\n";
     //std::cout << "Core 1, CPU Util: " << (cpuUtil/after)*100 << "%\n";
-    CPUUtilCore[1] = (cpuUtil/after)*100;
+    CPUUtilCore[1] = (cpuUtil.count()/value.count())*100;
     }
     else if (core_id == 2) {
     //std::cout << "Core 2, CPU: " << cpuUtil << "\n";
     //std::cout << "Core 2, CPU Util: " << (cpuUtil/after)*100 << "%\n";
-    CPUUtilCore[2] = (cpuUtil/after)*100;
+    CPUUtilCore[2] = (cpuUtil.count()/value.count())*100;
     }
     else if (core_id == 3) {
     //std::cout << "Core 3, CPU: " << cpuUtil << "\n";
     //std::cout << "Core 3, CPU Util: " << (cpuUtil/after)*100 << "%\n";
-    CPUUtilCore[3] = (cpuUtil/after)*100;
+    CPUUtilCore[3] = (cpuUtil.count()/value.count())*100;
     }
     return;
     // Work to be done by each core idependent of the other core

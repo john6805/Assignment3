@@ -65,6 +65,18 @@ uint32_t Process::GetBurstTime()
 void Process::UpdateCurrentBurst()
 {
     current_burst = current_burst + 1;
+    return;
+}
+
+std::chrono::high_resolution_clock::time_point Process::GetProcessStartTime()
+{
+    return process_start_time;
+}
+
+void Process::SetProcessStartTime()
+{
+    process_start_time = std::chrono::high_resolution_clock::now();
+    return;
 }
 
 std::chrono::high_resolution_clock::time_point Process::GetBurstStartTime()
@@ -75,7 +87,20 @@ std::chrono::high_resolution_clock::time_point Process::GetBurstStartTime()
 void Process::SetBurstStartTime()
 {
     burst_start_time = std::chrono::high_resolution_clock::now();
+    return;
 }
+
+std::chrono::high_resolution_clock::time_point Process::GetReadyQueueEntryTime()
+{
+    return ready_queue_entry_time;
+}
+
+void Process::SetReadyQueueEntryTime(std::chrono::high_resolution_clock::time_point now)
+{
+    ready_queue_entry_time = now;
+    return;
+}
+
 int8_t Process::GetCpuCore()
 {
     return core;
