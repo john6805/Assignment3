@@ -110,8 +110,8 @@ int main(int argc, char **argv)
             {
                 terminated++;
                 if(terminated == processes.size()/2) {
-                    timeHalf = (time_elapsed.count() * 1000);
-                    throughputFirstHalf = (terminated*1.0)/timeHalf;
+                    timeHalf = (time_elapsed.count());
+                    throughputFirstHalf = (terminated)/timeHalf;
                 }
                 /*else if (terminated == processes.size()) {
                     time2ndHalf = current_time - start_time - timeHalf;
@@ -188,7 +188,7 @@ int main(int argc, char **argv)
     current_time = timer.now();
     time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - start_time);
     time2ndHalf = (time_elapsed.count() * 1000) - timeHalf;
-    throughputSecondHalf = (processes.size()-processes.size()/2)/time2ndHalf;
+    //throughputSecondHalf = (processes.size()-processes.size()/2)/time2ndHalf;
     //          Check state of each process, if not started, check start time and start
     //          if in io check io time and add to ready
     //  - Start new processes at their appropriate start time
@@ -208,17 +208,24 @@ int main(int argc, char **argv)
     {
         avgCpuUtil += CPUUtilCore[i];
     }
-    avgCpuUtil = avgCpuUtil / cores;
-    // std::cout << "Average CPU Utilization: " << avgCpuUtil << "%\n";
-    // std::cout << "Time Start: " << start_time << "\n";
-    // std::cout << "Time Half: " << timeHalf << "\n";
-    // std::cout << "# of processes: " << processes.size()/2 << "\n";
-    // std::cout << "Throughput First Half: " << throughputFirstHalf << "\n";
+    
+    auto start_ms = std::chrono::time_point_cast<std::chrono::seconds>(start_time);
+    auto start_value = start_ms.time_since_epoch();
+    
+    //auto timeHalf_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(timeHalf);
+    //auto timeHalf_value = timeHalf_ms.time_since_epoch();
+    
+    avgCpuUtil = (avgCpuUtil / cores);
+    std::cout << "Average CPU Utilization: " << avgCpuUtil << "%\n";
+    std::cout << "Time Start: " << start_value.count() << "\n";
+    std::cout << "Time Half: " << timeHalf << "\n";
+    std::cout << "# of processes: " << processes.size()/2 << "\n";
+    std::cout << "Throughput First Half: " << throughputFirstHalf << "\n";
     // std::cout << "Current time: " << current_time << "\n";
-    // std::cout << "Time 2nd Half: " << time2ndHalf << "\n";
-    // std::cout << "# of processes: " << processes.size()-processes.size()/2 << "\n";
-    // std::cout << "Throughput Second Half: " << throughputSecondHalf << "\n";
-    // std::cout << "Average Throughput: " << processes.size()/time2ndHalf << "\n";
+    std::cout << "Time 2nd Half: " << time2ndHalf << "\n";
+    std::cout << "# of processes: " << processes.size()-processes.size()/2 << "\n";
+    std::cout << "Throughput Second Half: " << throughputSecondHalf << "\n";
+    std::cout << "Average Throughput: " << processes.size()/time2ndHalf << "\n";
     // std::cout << "Average Turnaround Time: " << printTurnTime(processes) << "\n";
     // std::cout << "Average Wait Time: " << printWaitTime(processes) << "\n";
     
@@ -251,7 +258,7 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
     uint32_t burst_time;
     std::chrono::high_resolution_clock::time_point before;
     std::chrono::high_resolution_clock::time_point after;
-    double threadstarted = clock()/1000.0;
+    std::chrono::high_resolution_clock::time_point threadstarted = timer.now();
     std::chrono::duration<double> cpuUtil;
     
     while(!processesTerminated)
@@ -401,28 +408,31 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
         //  - Repeat until all processes in terminated state
     }
     after = timer.now();
-    auto after_s = std::chrono::time_point_cast<std::chrono::seconds>(after);
-    auto value = after_s.time_since_epoch();
+    time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(after - threadstarted);
+    //auto after_s = std::chrono::time_point_cast<std::chrono::milliseconds>(after);
+    //auto value = after_s.time_since_epoch();
     
     if (core_id == 0) {
-    //std::cout << "Core 0, CPU time: " << cpuUtil << "\n";
-    //std::cout << "Core 0, CPU Util: " << (cpuUtil/after)*100 << "%\n";
-    CPUUtilCore[0] = (cpuUtil.count()/value.count())*100;
+    //std::cout << "Core 0, CPU time: " << cpuUtil.count() << "\n";
+    std::cout << "Time running: " << time_elapsed.count() << "\n";
+    //std::cout << "Core 0, CPU Util: " << (cpuUtil.count()/time_elapsed.count())*100 << "%\n";
+    //std::cout << "Core 0, CPU Util: " << (cpuUtil.count()/(time_elapsed.count()*1000))*100 << "%\n";
+    CPUUtilCore[0] = (cpuUtil.count()/time_elapsed.count())*100;
     }
     else if (core_id == 1) {
-    //std::cout << "Core 1, CPU: " << cpuUtil << "\n";
-    //std::cout << "Core 1, CPU Util: " << (cpuUtil/after)*100 << "%\n";
-    CPUUtilCore[1] = (cpuUtil.count()/value.count())*100;
+    //std::cout << "Core 1, CPU: " << cpuUtil.count() << "\n";
+    //std::cout << "Core 1, CPU Util: " << (cpuUtil.count()/time_elapsed.count())*100 << "%\n";
+    CPUUtilCore[1] = (cpuUtil.count()/time_elapsed.count())*100;
     }
     else if (core_id == 2) {
     //std::cout << "Core 2, CPU: " << cpuUtil << "\n";
     //std::cout << "Core 2, CPU Util: " << (cpuUtil/after)*100 << "%\n";
-    CPUUtilCore[2] = (cpuUtil.count()/value.count())*100;
+    CPUUtilCore[2] = (cpuUtil.count()/time_elapsed.count())*100;
     }
     else if (core_id == 3) {
     //std::cout << "Core 3, CPU: " << cpuUtil << "\n";
     //std::cout << "Core 3, CPU Util: " << (cpuUtil/after)*100 << "%\n";
-    CPUUtilCore[3] = (cpuUtil.count()/value.count())*100;
+    CPUUtilCore[3] = (cpuUtil.count()/time_elapsed.count())*100;
     }
     return;
     // Work to be done by each core idependent of the other core
