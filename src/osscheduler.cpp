@@ -53,7 +53,7 @@ int main(int argc, char **argv)
         if (p->GetState() == Process::State::Ready)
         {
             processes[i]->SetReadyQueueEntryTime(timer.now());
-            processes[i]->SetProcessStartTime();
+            //processes[i]->SetProcessStartTime();
             if(algorithm == ScheduleAlgorithm::SJF)
             {
                 SJFInsert(&ready_queue, p);
@@ -71,7 +71,7 @@ int main(int argc, char **argv)
     // Free configuration data from memory
     DeleteConfig(&config);
 
-    PrintStatistics(processes, algorithm);
+    //PrintStatistics(processes, algorithm);
     int linesPrinted = PrintStatistics(processes, algorithm);
     //start timer
     
@@ -273,7 +273,7 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                 while(burst_elapsed < burst_time && currentProcess->GetRemainingTime() > 0)
                 {
                     //Simulate Process running
-                    
+                    usleep(1000);
                     currentProcess->SetState(Process::State::Running);
                     end = timer.now();
                     time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
@@ -329,8 +329,8 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                 {
                     //Simulate Process running
                     start = timer.now();
-                    currentProcess->SetState(Process::State::Running);
                     usleep(1000);
+                    currentProcess->SetState(Process::State::Running);
                     end = timer.now();
                     time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
                     currentProcess->SetRemainingTime(time_elapsed.count() * 1000);
@@ -352,7 +352,10 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                         burst_time = currentProcess->GetBurstTime();
                         burst_elapsed = currentProcess->GetBurstElapsed();
                         //wait context switching time
+                        after = timer.now();
+                        cpuUtil += std::chrono::duration_cast<std::chrono::duration<double>>(after-before);
                         usleep(context_switch);
+                        start = timer.now();
                     }
                     else {
                         mutex->unlock();
@@ -360,11 +363,6 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                 }
                 currentProcess->UpdateCurrentBurst();
                 currentProcess->SetBurstElapsed(0);
-                //Place process back in queue
-                if(!ready_queue->empty() && ready_queue->front()->GetPriority() < currentProcess->GetPriority())
-                {
-                    PPInsert(ready_queue, currentProcess);
-                }
                 if(currentProcess->GetRemainingTime() <= 0)
                 {
                     after = timer.now();

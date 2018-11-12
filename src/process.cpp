@@ -25,6 +25,7 @@ Process::Process(ProcessDetails details)
         remain_time += burst_times[i];
     }
     burst_elapsed = 0;
+    process_start_time = std::chrono::high_resolution_clock::now();
 }
 
 Process::~Process()
