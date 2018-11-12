@@ -357,6 +357,7 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                     //currentProcess->CalcTurnaroundTime(time_elapsed.count() * 1000);
                     currentProcess->CalcCpuTime(time_elapsed.count() * 1000);
                     burst_elapsed = burst_elapsed + (time_elapsed.count() * 1000);
+                    currentProcess->SetBurstElapsed(time_elapsed.count() * 1000);
                     mutex->lock();
                     if(!ready_queue->empty() && ready_queue->front()->GetPriority() < currentProcess->GetPriority())
                     {
@@ -367,7 +368,7 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                             std::cout << "Process was ejected from core 1\n\n\n\n\n"; 
                         }*/
                         //Put process in ready queue then pop front of ready queue
-                        currentProcess->SetBurstElapsed(burst_elapsed);
+                        
                         currentProcess->SetCpuCore(-1);
                         currentProcess->SetState(Process::State::Ready);
                         PPInsert(ready_queue, currentProcess);
@@ -381,7 +382,6 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                         currentProcess->SetCpuCore(core_id);
                         burst_time = currentProcess->GetBurstTime();
                         burst_elapsed = currentProcess->GetBurstElapsed();
-                        start = timer.now();
                     }
                     else 
                     {
@@ -395,7 +395,7 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                     std::cout << "Process in core 1 completed burst\n\n\n\n\n"; 
                 }*/
                 currentProcess->UpdateCurrentBurst();
-                currentProcess->SetBurstElapsed(0);
+                currentProcess->SetBurstElapsed(currentProcess->GetBurstElapsed() * -1);
                 if(currentProcess->GetRemainingTime() <= 0)
                 {
                     after = timer.now();
@@ -420,6 +420,10 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                     //wait context switching time
                     usleep(context_switch);
                 }
+            }
+            else
+            {
+                mutex->unlock();
             }
         }
         else if(algorithm == ScheduleAlgorithm::RR)
