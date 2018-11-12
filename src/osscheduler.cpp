@@ -348,13 +348,13 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                         currentProcess = ready_queue->front();
                         ready_queue->pop_front();
                         mutex->unlock();
-                        currentProcess->SetCpuCore(core_id);
-                        burst_time = currentProcess->GetBurstTime();
-                        burst_elapsed = currentProcess->GetBurstElapsed();
                         //wait context switching time
                         after = timer.now();
                         cpuUtil += std::chrono::duration_cast<std::chrono::duration<double>>(after-before);
                         usleep(context_switch);
+                        currentProcess->SetCpuCore(core_id);
+                        burst_time = currentProcess->GetBurstTime();
+                        burst_elapsed = currentProcess->GetBurstElapsed();
                         start = timer.now();
                     }
                     else {
@@ -584,7 +584,7 @@ void PPInsert(std::list<Process*> *ready_queue, Process* currentProcess)
     std::list<Process*>::iterator it;
     for(it = ready_queue->begin(); it != ready_queue->end(); ++it)
     {
-        if(currentProcess->GetPriority() > (*it)->GetPriority())
+        if(currentProcess->GetPriority() < (*it)->GetPriority())
         {
             ready_queue->insert(it, currentProcess);
             return;
