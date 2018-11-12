@@ -144,7 +144,7 @@ int main(int argc, char **argv)
             else if(processes[i]->GetState() == Process::State::IO) 
             {
                 //time_elapsed is not working (value is too small)
-                //time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - processes[i]->GetBurstStartTime());
+                time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - processes[i]->GetBurstStartTime());
                 //processes[i]->CalcTurnaroundTime(time_elapsed.count() * 1000);
                 if((time_elapsed.count() * 1000) >= processes[i]->GetBurstTime())
                 {
@@ -299,10 +299,11 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                     after = timer.now();
                     cpuUtil += std::chrono::duration_cast<std::chrono::duration<double>>(after-before);
                     currentProcess->SetCpuCore(-1);
-                    currentProcess->SetState(Process::State::IO);
-                    currentProcess->SetBurstStartTime();
+                    
                     //wait context switching time
                     usleep(context_switch);
+                    currentProcess->SetState(Process::State::IO);
+                    currentProcess->SetBurstStartTime();
                 }
                 
                 
