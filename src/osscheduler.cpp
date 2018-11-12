@@ -23,8 +23,6 @@ double CPUUtilCore[4];
 
 int main(int argc, char **argv)
 {
-    time_t start, end;
-    time (&start);
     std::chrono::high_resolution_clock timer;
     
     // Ensure user entered a command line parameter for configuration file name
@@ -53,7 +51,6 @@ int main(int argc, char **argv)
         if (p->GetState() == Process::State::Ready)
         {
             processes[i]->SetReadyQueueEntryTime(timer.now());
-            //processes[i]->SetProcessStartTime();
             if(algorithm == ScheduleAlgorithm::SJF)
             {
                 SJFInsert(&ready_queue, p);
@@ -103,8 +100,6 @@ int main(int argc, char **argv)
         for(int i = 0; i < processes.size(); i++)
         {
             current_time = timer.now();
-            //auto current_time_s = std::chrono::time_point_cast<std::chrono::seconds>(current_time);
-            //auto value = current_time_s.time_since_epoch();
             time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - start_time);
             time_since_start = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - processes[i]->GetProcessStartTime());
             if(processes[i]->GetState() == Process::State::Terminated)
@@ -115,10 +110,6 @@ int main(int argc, char **argv)
                     throughputFirstHalf = (terminated)/timeHalf;
                     flag++;
                 }
-                /*else if (terminated == processes.size()) {
-                    time2ndHalf = current_time - start_time - timeHalf;
-                    throughputSecondHalf = (terminated*1.0-processes.size()/2)/(time2ndHalf/1000.0);
-                }*/
             }
             else
             {
@@ -145,9 +136,7 @@ int main(int argc, char **argv)
             }
             else if(processes[i]->GetState() == Process::State::IO) 
             {
-                //time_elapsed is not working (value is too small)
                 time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - processes[i]->GetBurstStartTime());
-                //processes[i]->CalcTurnaroundTime(time_elapsed.count() * 1000);
                 if((time_elapsed.count() * 1000) >= processes[i]->GetBurstTime())
                 {
                     processes[i]->SetState(Process::State::Ready);
@@ -169,11 +158,9 @@ int main(int argc, char **argv)
             }
             else if(processes[i]->GetState() == Process::State::Ready)
             {
-                //time_elapsed is not working (value is too small)
                 time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - processes[i]->GetReadyQueueEntryTime());
                 processes[i]->CalcWaitTime(time_elapsed.count() * 1000);
                 processes[i]->SetReadyQueueEntryTime(timer.now());
-                //processes[i]->CalcTurnaroundTime(time_elapsed.count() * 1000);
             }      
         }
         //sort ready queue based on scheduling algorithm
@@ -184,6 +171,7 @@ int main(int argc, char **argv)
         }
         rewind(stdout);
         linesPrinted = PrintStatistics(processes, algorithm);
+        //to allow for refresh
         usleep(100000);
     }
     processesTerminated = true;
@@ -211,22 +199,10 @@ int main(int argc, char **argv)
         avgCpuUtil += CPUUtilCore[i];
     }
     
-    auto start_ms = std::chrono::time_point_cast<std::chrono::seconds>(start_time);
-    auto start_value = start_ms.time_since_epoch();
-    
-    //auto timeHalf_ms = std::chrono::time_point_cast<std::chrono::milliseconds>(timeHalf);
-    //auto timeHalf_value = timeHalf_ms.time_since_epoch();
-    
     avgCpuUtil = (avgCpuUtil / cores);
-    std::cout << "Average CPU Utilization: " << avgCpuUtil << "%\n";
-    //std::cout << "Time Start: " << start_value.count() << "\n";
-    //std::cout << "Time Half: " << timeHalf << "\n";
-    //std::cout << "# of processes: " << processes.size()/2 << "\n";
-    std::cout << "Throughput First Half: " << throughputFirstHalf << "\n";
-    // std::cout << "Current time: " << current_time << "\n";
-    //std::cout << "Time 2nd Half: " << time2ndHalf << "\n";
-    //std::cout << "# of processes: " << processes.size()-processes.size()/2 << "\n";
-    std::cout << "Throughput Second Half: " << throughputSecondHalf << "\n";
+    std::cout << "CPU Utilization: " << avgCpuUtil << "%\n";
+    std::cout << "Average Throughput for First Half: " << throughputFirstHalf << "\n";
+    std::cout << "Average Throughput for Second Half: " << throughputSecondHalf << "\n";
     std::cout << "Average Throughput: " << processes.size()/(time2ndHalf+timeHalf) << "\n";
     std::cout << "Average Turnaround Time: " << printTurnTime(processes) << "\n";
     std::cout << "Average Wait Time: " << printWaitTime(processes) << "\n";
@@ -288,31 +264,32 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                     time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
                     currentProcess->SetRemainingTime(time_elapsed.count() * 1000);
                     start = timer.now();
-                    //currentProcess->CalcTurnaroundTime(time_elapsed.count() * 1000);
                     currentProcess->CalcCpuTime(time_elapsed.count() * 1000);
                     burst_elapsed = burst_elapsed + (time_elapsed.count() * 1000);
                     
                 }
                 currentProcess->UpdateCurrentBurst();
-                //Place process back in queue
                 if(currentProcess->GetRemainingTime() <= 0)
                 {
+                    //update CPU utilization for this core
                     after = timer.now();
                     cpuUtil += std::chrono::duration_cast<std::chrono::duration<double>>(after-before);
+                    //update process status information
                     currentProcess->SetCpuCore(-1);
                     currentProcess->SetState(Process::State::Terminated);
                     
                 }
                 else
                 {
+                    //update CPU utilization for this core
                     after = timer.now();
                     cpuUtil += std::chrono::duration_cast<std::chrono::duration<double>>(after-before);
+                    //update process status information
                     currentProcess->SetCpuCore(-1);
-                    
-                    //wait context switching time
-                    usleep(context_switch);
                     currentProcess->SetState(Process::State::IO);
                     currentProcess->SetBurstStartTime();
+                    //wait context switching time
+                    usleep(context_switch);
                 }    
             }          
             else 
@@ -322,22 +299,10 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
         }
         else if(algorithm == ScheduleAlgorithm::PP)
         {
-            /*if(core_id == 0) {
-                std::cout << "core 0 looking for process\n\n\n\n\n"; 
-            }
-            else if(core_id == 1) {
-                std::cout << "core 1 looking for process\n\n\n\n\n"; 
-            }*/
             mutex->lock();
             //Get process at front of ready queue
             if(!ready_queue->empty())
             {
-                /*if(core_id == 0) {
-                    std::cout << "Grabbing Process in core 0\n\n\n\n\n"; 
-                }
-                else if(core_id == 1) {
-                    std::cout << "Grabbing Process in core 1\n\n\n\n\n"; 
-                }*/
                 before = timer.now();
                 currentProcess = ready_queue->front();
                 ready_queue->pop_front();
@@ -354,19 +319,12 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                     end = timer.now();
                     time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
                     currentProcess->SetRemainingTime(time_elapsed.count() * 1000);
-                    //currentProcess->CalcTurnaroundTime(time_elapsed.count() * 1000);
                     currentProcess->CalcCpuTime(time_elapsed.count() * 1000);
                     burst_elapsed = burst_elapsed + (time_elapsed.count() * 1000);
                     currentProcess->SetBurstElapsed(time_elapsed.count() * 1000);
                     mutex->lock();
                     if(!ready_queue->empty() && ready_queue->front()->GetPriority() < currentProcess->GetPriority())
                     {
-                        /*if(core_id == 0) {
-                            std::cout << "Process was ejected from core 0\n\n\n\n\n"; 
-                        }
-                        else if(core_id == 1) {
-                            std::cout << "Process was ejected from core 1\n\n\n\n\n"; 
-                        }*/
                         //Put process in ready queue then pop front of ready queue
                         
                         currentProcess->SetCpuCore(-1);
@@ -375,10 +333,12 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                         currentProcess = ready_queue->front();
                         ready_queue->pop_front();
                         mutex->unlock();
-                        //wait context switching time
+                        
                         after = timer.now();
                         cpuUtil += std::chrono::duration_cast<std::chrono::duration<double>>(after-before);
+                        //wait context switching time
                         usleep(context_switch);
+                        before = timer.now();
                         currentProcess->SetCpuCore(core_id);
                         burst_time = currentProcess->GetBurstTime();
                         burst_elapsed = currentProcess->GetBurstElapsed();
@@ -388,32 +348,23 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                         mutex->unlock();
                     }
                 }
-                /*if(core_id == 0) {
-                    std::cout << "Process in core 0 completed burst\n\n\n\n\n"; 
-                }
-                else if(core_id == 1) {
-                    std::cout << "Process in core 1 completed burst\n\n\n\n\n"; 
-                }*/
                 currentProcess->UpdateCurrentBurst();
                 currentProcess->SetBurstElapsed(currentProcess->GetBurstElapsed() * -1);
                 if(currentProcess->GetRemainingTime() <= 0)
                 {
+                    //update CPU utilization for this core
                     after = timer.now();
                     cpuUtil += std::chrono::duration_cast<std::chrono::duration<double>>(after-before);
+                    //update process status information
                     currentProcess->SetCpuCore(-1);
                     currentProcess->SetState(Process::State::Terminated);
-                    after = timer.now();
                 }
                 else
                 {
-                    /*if(core_id == 0) {
-                        std::cout << "Process in core 0 to IO\n\n\n\n\n"; 
-                    }
-                    else if(core_id == 1) {
-                        std::cout << "Process in core 1 to IO\n\n\n\n\n"; 
-                    }*/
+                    //update CPU utilization for this core
                     after = timer.now();
                     cpuUtil += std::chrono::duration_cast<std::chrono::duration<double>>(after-before);
+                    //update process status information
                     currentProcess->SetCpuCore(-1);
                     currentProcess->SetState(Process::State::IO);
                     currentProcess->SetBurstStartTime();
@@ -455,14 +406,17 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                     {
                         currentProcess->SetState(Process::State::Ready);
                         currentProcess->SetCpuCore(-1);
-                        usleep(context_switch);
-                        before = timer.now();
+                        after = timer.now();
+                        cpuUtil += std::chrono::duration_cast<std::chrono::duration<double>>(after-before);
                         
+                        //Perform context switch
+                        usleep(context_switch);
                         mutex->lock();
                         ready_queue->push_back(currentProcess);
                         currentProcess = ready_queue->front();
                         ready_queue->pop_front();
                         mutex->unlock();
+                        before = timer.now();
 
                         currentProcess->SetCpuCore(core_id);
                         burst_time = currentProcess->GetBurstTime();
@@ -473,16 +427,20 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                 currentProcess->SetBurstElapsed(currentProcess->GetBurstElapsed() * -1);
                 if(currentProcess->GetRemainingTime() <= 0)
                 {
+                    //update CPU utilization for this core
                     after = timer.now();
                     cpuUtil += std::chrono::duration_cast<std::chrono::duration<double>>(after-before);
+                    //update process status information
                     currentProcess->SetCpuCore(-1);
                     currentProcess->SetState(Process::State::Terminated);
                     after = timer.now();
                 }
                 else
                 {
+                    //update CPU utilization for this core
                     after = timer.now();
                     cpuUtil += std::chrono::duration_cast<std::chrono::duration<double>>(after-before);
+                    //update process status information
                     currentProcess->SetCpuCore(-1);
                     currentProcess->SetState(Process::State::IO);
                     currentProcess->SetBurstStartTime();
@@ -499,34 +457,20 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
         
     after = timer.now();
     time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(after - threadstarted);
-    //auto after_s = std::chrono::time_point_cast<std::chrono::milliseconds>(after);
-    //auto value = after_s.time_since_epoch();
     
     if (core_id == 0) {
-    //std::cout << "Core 0, CPU time: " << cpuUtil.count() << "\n";
-    std::cout << "Time running: " << time_elapsed.count() << "\n";
-    //std::cout << "Core 0, CPU Util: " << (cpuUtil.count()/time_elapsed.count())*100 << "%\n";
-    //std::cout << "Core 0, CPU Util: " << (cpuUtil.count()/(time_elapsed.count()*1000))*100 << "%\n";
     CPUUtilCore[0] = (cpuUtil.count()/time_elapsed.count())*100;
     }
     else if (core_id == 1) {
-    //std::cout << "Core 1, CPU: " << cpuUtil.count() << "\n";
-    //std::cout << "Core 1, CPU Util: " << (cpuUtil.count()/time_elapsed.count())*100 << "%\n";
     CPUUtilCore[1] = (cpuUtil.count()/time_elapsed.count())*100;
     }
     else if (core_id == 2) {
-    //std::cout << "Core 2, CPU: " << cpuUtil << "\n";
-    //std::cout << "Core 2, CPU Util: " << (cpuUtil/after)*100 << "%\n";
     CPUUtilCore[2] = (cpuUtil.count()/time_elapsed.count())*100;
     }
     else if (core_id == 3) {
-    //std::cout << "Core 3, CPU: " << cpuUtil << "\n";
-    //std::cout << "Core 3, CPU Util: " << (cpuUtil/after)*100 << "%\n";
     CPUUtilCore[3] = (cpuUtil.count()/time_elapsed.count())*100;
     }
     return;
-    // Work to be done by each core idependent of the other core
-       //  - 
 }
 
 int PrintStatistics(std::vector<Process*> processes, ScheduleAlgorithm algorithm) {
@@ -625,9 +569,11 @@ int PrintStatistics(std::vector<Process*> processes, ScheduleAlgorithm algorithm
                 processLine[k] = remTime[j];
                 k--;
             }
+            //print current processes line
             std::cout << processLine;
         }
     }
+    //linesPrinted used to know how many line to remove
     return linesPrinted;
 }
 
