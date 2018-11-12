@@ -219,13 +219,13 @@ int main(int argc, char **argv)
     
     avgCpuUtil = (avgCpuUtil / cores);
     std::cout << "Average CPU Utilization: " << avgCpuUtil << "%\n";
-    std::cout << "Time Start: " << start_value.count() << "\n";
-    std::cout << "Time Half: " << timeHalf << "\n";
-    std::cout << "# of processes: " << processes.size()/2 << "\n";
+    //std::cout << "Time Start: " << start_value.count() << "\n";
+    //std::cout << "Time Half: " << timeHalf << "\n";
+    //std::cout << "# of processes: " << processes.size()/2 << "\n";
     std::cout << "Throughput First Half: " << throughputFirstHalf << "\n";
     // std::cout << "Current time: " << current_time << "\n";
-    std::cout << "Time 2nd Half: " << time2ndHalf << "\n";
-    std::cout << "# of processes: " << processes.size()-processes.size()/2 << "\n";
+    //std::cout << "Time 2nd Half: " << time2ndHalf << "\n";
+    //std::cout << "# of processes: " << processes.size()-processes.size()/2 << "\n";
     std::cout << "Throughput Second Half: " << throughputSecondHalf << "\n";
     std::cout << "Average Throughput: " << processes.size()/(time2ndHalf+timeHalf) << "\n";
     std::cout << "Average Turnaround Time: " << printTurnTime(processes) << "\n";
@@ -322,10 +322,22 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
         }
         else if(algorithm == ScheduleAlgorithm::PP)
         {
+            /*if(core_id == 0) {
+                std::cout << "core 0 looking for process\n\n\n\n\n"; 
+            }
+            else if(core_id == 1) {
+                std::cout << "core 1 looking for process\n\n\n\n\n"; 
+            }*/
             mutex->lock();
             //Get process at front of ready queue
             if(!ready_queue->empty())
             {
+                /*if(core_id == 0) {
+                    std::cout << "Grabbing Process in core 0\n\n\n\n\n"; 
+                }
+                else if(core_id == 1) {
+                    std::cout << "Grabbing Process in core 1\n\n\n\n\n"; 
+                }*/
                 before = timer.now();
                 currentProcess = ready_queue->front();
                 ready_queue->pop_front();
@@ -348,6 +360,12 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                     mutex->lock();
                     if(!ready_queue->empty() && ready_queue->front()->GetPriority() < currentProcess->GetPriority())
                     {
+                        /*if(core_id == 0) {
+                            std::cout << "Process was ejected from core 0\n\n\n\n\n"; 
+                        }
+                        else if(core_id == 1) {
+                            std::cout << "Process was ejected from core 1\n\n\n\n\n"; 
+                        }*/
                         //Put process in ready queue then pop front of ready queue
                         currentProcess->SetBurstElapsed(burst_elapsed);
                         currentProcess->SetCpuCore(-1);
@@ -370,6 +388,12 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                         mutex->unlock();
                     }
                 }
+                /*if(core_id == 0) {
+                    std::cout << "Process in core 0 completed burst\n\n\n\n\n"; 
+                }
+                else if(core_id == 1) {
+                    std::cout << "Process in core 1 completed burst\n\n\n\n\n"; 
+                }*/
                 currentProcess->UpdateCurrentBurst();
                 currentProcess->SetBurstElapsed(0);
                 if(currentProcess->GetRemainingTime() <= 0)
@@ -382,6 +406,12 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                 }
                 else
                 {
+                    /*if(core_id == 0) {
+                        std::cout << "Process in core 0 to IO\n\n\n\n\n"; 
+                    }
+                    else if(core_id == 1) {
+                        std::cout << "Process in core 1 to IO\n\n\n\n\n"; 
+                    }*/
                     after = timer.now();
                     cpuUtil += std::chrono::duration_cast<std::chrono::duration<double>>(after-before);
                     currentProcess->SetCpuCore(-1);
@@ -423,7 +453,7 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                         currentProcess->SetCpuCore(-1);
                         usleep(context_switch);
                         before = timer.now();
-
+                        
                         mutex->lock();
                         ready_queue->push_back(currentProcess);
                         currentProcess = ready_queue->front();
@@ -510,7 +540,7 @@ int PrintStatistics(std::vector<Process*> processes, ScheduleAlgorithm algorithm
             std::string waitTime = std::to_string(processes[i]->GetWaitTime());
             std::string cpuTime = std::to_string(processes[i]->GetCpuTime());
             std::string remTime = std::to_string(processes[i]->GetRemainingTime());
-            processLine += "|       |          |             |      |            |            |            |             |\n";
+            processLine = "|       |          |             |      |            |            |            |             |\n";
 
             //PID
             int k = 6;
@@ -575,38 +605,22 @@ int PrintStatistics(std::vector<Process*> processes, ScheduleAlgorithm algorithm
             }
             //Wait Time
             k = 64;
-            for(int j = turnTime.length()-1; j >= 0; j--) {
+            for(int j = waitTime.length()-1; j >= 0; j--) {
                 processLine[k] = waitTime[j];
                 k--;
             }
             //CPU Time
             k = 77;
-            for(int j = turnTime.length()-1; j >= 0; j--) {
+            for(int j = cpuTime.length()-1; j >= 0; j--) {
                 processLine[k] = cpuTime[j];
                 k--;
             }
             //Remain Time
-            k = 90;
+            k = 91;
             for(int j = remTime.length()-1; j >= 0; j--) {
                 processLine[k] = remTime[j];
                 k--;
             }
-            /*//PID
-            std::cout << "|       |";
-            //Priority
-            std::cout << "          |";
-            //State
-            std::cout << "            |";
-            //Core
-            std::cout << "   -- |";
-            //Turn Time
-            std::cout << "           |";
-            //Wait Time
-            std::cout << "           |";
-            //CPU Time
-            std::cout << "         |";
-            //Remain Time
-            std::cout << "             |\n";*/
             std::cout << processLine;
         }
     }
@@ -644,6 +658,7 @@ void SJFInsert(std::list<Process*> *ready_queue, Process* currentProcess)
     {
         ready_queue->push_back(currentProcess);
     }
+    return;
 }
 
 void PPInsert(std::list<Process*> *ready_queue, Process* currentProcess)
@@ -661,4 +676,5 @@ void PPInsert(std::list<Process*> *ready_queue, Process* currentProcess)
     {
         ready_queue->push_back(currentProcess);
     }
+    return;
 }
