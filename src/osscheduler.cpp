@@ -83,6 +83,7 @@ int main(int argc, char **argv)
     double throughputSecondHalf = 0.0;
     double timeHalf = 0.0;
     double time2ndHalf = 0.0;
+    int flag = 0;
     
     // Launch 1 scheduling thread per cpu core
     std::mutex mutex;
@@ -109,9 +110,10 @@ int main(int argc, char **argv)
             if(processes[i]->GetState() == Process::State::Terminated)
             {
                 terminated++;
-                if(terminated == processes.size()/2) {
+                if(terminated == processes.size()/2 && flag == 0) {
                     timeHalf = (time_elapsed.count());
                     throughputFirstHalf = (terminated)/timeHalf;
+                    flag++;
                 }
                 /*else if (terminated == processes.size()) {
                     time2ndHalf = current_time - start_time - timeHalf;
@@ -187,8 +189,8 @@ int main(int argc, char **argv)
     processesTerminated = true;
     current_time = timer.now();
     time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(current_time - start_time);
-    time2ndHalf = (time_elapsed.count() * 1000) - timeHalf;
-    //throughputSecondHalf = (processes.size()-processes.size()/2)/time2ndHalf;
+    time2ndHalf = (time_elapsed.count()) - timeHalf;
+    throughputSecondHalf = (processes.size()-processes.size()/2)/time2ndHalf;
     //          Check state of each process, if not started, check start time and start
     //          if in io check io time and add to ready
     //  - Start new processes at their appropriate start time
@@ -225,9 +227,9 @@ int main(int argc, char **argv)
     std::cout << "Time 2nd Half: " << time2ndHalf << "\n";
     std::cout << "# of processes: " << processes.size()-processes.size()/2 << "\n";
     std::cout << "Throughput Second Half: " << throughputSecondHalf << "\n";
-    std::cout << "Average Throughput: " << processes.size()/time2ndHalf << "\n";
-    // std::cout << "Average Turnaround Time: " << printTurnTime(processes) << "\n";
-    // std::cout << "Average Wait Time: " << printWaitTime(processes) << "\n";
+    std::cout << "Average Throughput: " << processes.size()/(time2ndHalf+timeHalf) << "\n";
+    std::cout << "Average Turnaround Time: " << printTurnTime(processes) << "\n";
+    std::cout << "Average Wait Time: " << printWaitTime(processes) << "\n";
     
     // Print final statistics
     //  - CPU utilization
