@@ -279,6 +279,7 @@ void ScheduleProcesses(uint8_t core_id, ScheduleAlgorithm algorithm, uint32_t co
                     time_elapsed = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
                     currentProcess->SetRemainingTime(time_elapsed.count() * 1000);
                     start = timer.now();
+                    usleep(1000);
                     //currentProcess->CalcTurnaroundTime(time_elapsed.count() * 1000);
                     currentProcess->CalcCpuTime(time_elapsed.count() * 1000);
                     burst_elapsed = burst_elapsed + (time_elapsed.count() * 1000);
